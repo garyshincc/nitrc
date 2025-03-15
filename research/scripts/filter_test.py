@@ -17,31 +17,32 @@ def main() -> None:
 
     for _, rest_eeg_filepath in enumerate(rest_eeg_filepaths[:1]):
         X = np.loadtxt(rest_eeg_filepath, delimiter=",")
-        X = X[:, :max_T]
+        X = X[1:, :max_T]
         T = np.linspace(0, max_T, max_T)
+        N_CH = 2  # len(X)
 
-        fig = make_subplots(rows=len(X) * 2, cols=1, shared_xaxes=False)
+        fig = make_subplots(rows=N_CH * 2, cols=1, shared_xaxes=False)
 
-        for ch_i in range(len(X)):
+        for ch_i in range(N_CH):
             scat = go.Scatter(x=T, y=X[ch_i], mode="lines", name=f"ch {ch_i}")
             fig.add_trace(scat, row=(2 * ch_i) + 1, col=1)
 
         X = znorm(X)
-        for ch_i in range(len(X)):
+        for ch_i in range(N_CH):
             scat = go.Scatter(x=T, y=X[ch_i], mode="lines", name=f"ch {ch_i}")
             fig.add_trace(scat, row=(2 * ch_i) + 2, col=1)
 
         X = butter_bandpass_filter(X, lowcut=BP_MIN, highcut=BP_MAX, fs=FS)
-        for ch_i in range(len(X)):
+        for ch_i in range(N_CH):
             scat = go.Scatter(x=T, y=X[ch_i], mode="lines", name=f"BP ch {ch_i}")
             fig.add_trace(scat, row=(2 * ch_i) + 2, col=1)
 
         X = butter_bandstop_filter(X, lowcut=NOTCH_MIN, highcut=NOTCH_MAX, fs=FS)
-        for ch_i in range(len(X)):
+        for ch_i in range(N_CH):
             scat = go.Scatter(x=T, y=X[ch_i], mode="lines", name=f"BP BS ch {ch_i}")
             fig.add_trace(scat, row=(2 * ch_i) + 2, col=1)
 
-        fig.update_layout(height=300 * len(X), title_text="Time Series Subplots")
+        fig.update_layout(height=300 * N_CH, title_text="Raw Signals v.s. Filtered")
         fig.show()
 
 

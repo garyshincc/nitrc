@@ -12,19 +12,15 @@ from research.utils.data_utils import (
     znorm,
 )
 
-# Constants
-TOTAL_N = 2000  # Total number of samples
-N = 1000  # Splice size
-
 
 def main() -> None:
+    N = 1000  # sample
     rest_eeg_filepaths = collect_resting_state_files()
 
     for f_i, rest_eeg_filepath in enumerate(rest_eeg_filepaths[:1]):
         X_total: np.ndarray = np.loadtxt(rest_eeg_filepath, delimiter=",")
 
-        # Trim to desired length
-        X_total = X_total[:, :TOTAL_N]
+        X_total = X_total[:, : FS * 20]  # Clip to subset the data if desired
 
         # Preprocessing: Apply filters first, then normalize
         X_total = butter_bandpass_filter(X_total, lowcut=1, highcut=70, fs=FS)
@@ -49,7 +45,9 @@ def main() -> None:
             ys[:, x_i * N : (x_i + 1) * N - 1] = X[:, 1:]
 
         # Create time axis in seconds
-        T: np.ndarray = np.linspace(0, (TOTAL_N - 1) / FS, TOTAL_N - 1)
+        T: np.ndarray = np.linspace(
+            0, (X_total.shape[-1] - 1) / FS, X_total.shape[-1] - 1
+        )
 
         # Create a single figure with subplots for each channel
         n_chans = X_total.shape[0]
