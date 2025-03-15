@@ -1,0 +1,42 @@
+# Virtual environments
+venv/
+.venv/
+
+# IDE-specific files
+.idea/
+.vscode/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Data files (uncomment if you want to ignore large data files)
+# data/raw/*.csv
+# data/processed/*.csv
+
+# Model artifacts (uncomment if you want to ignore saved models)
+# models/*.pkl
+# models/*.h5
+
+# Build artifacts
+build/
+dist/
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Other miscellaneous files
+*.bak
+*.cache

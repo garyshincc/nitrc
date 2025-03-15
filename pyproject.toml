@@ -1,0 +1,92 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
+skip_gitignore = true
+
+[tool.pip-tools.compile]
+allow-unsafe = false
+color = false
+strip-extras = true
+
+[tool.pytest.ini_options]
+addopts = "-rs -s"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.coverage.run]
+omit = ["ci", "dev", "docker", "docs", "tests"]
+
+[tool.ruff]
+# same as black
+line-length = 88
+indent-width = 4
+target-version = "py39"
+output-format = "full"
+show-fixes = true
+
+[tool.ruff.lint]
+select = ["F401"]
+
+[tool.mypy]
+color_output = false
+disable_error_code = [
+    "arg-type",
+    "assignment",
+    "attr-defined",
+    "call-overload",
+    "import-not-found",
+    "import-untyped",
+    "index",
+    "operator",
+    "union-attr",
+    "var-annotated",
+]
+disallow_untyped_defs = true
+exclude = [
+    # mypy wrongly classify data directory with __init__.py as invalid pacakge
+    # https://github.com/python/mypy/issues/8400
+    "__init__.py",
+    "build",
+    "dist",
+    "venv",
+]
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.setuptools]
+platforms = ["MacOS", "Linux"]
+include-package-data = true
+zip-safe = true
+
+[tool.setuptools.packages.find]
+namespaces = false
+exclude = [".git*", "Makefile", "ci*", "dev*", "docs*", "docker*", "tests*"]
+
+[project]
+name = "nitrc"
+description = "nitrc research"
+version = "0.1.0"
+authors = [
+    { name = "Won Young Shin", email = "wonyoung.shin@alumni.utoronto.ca" }
+]
+dependencies = [
+    "scipy",
+    "numpy",
+    "jax",
+    "matplotlib",
+    "pandas",
+    "plotly",
+]
+
+[project.optional-dependencies]
+dev = [
+    "isort==5.13.2",
+    "ruff==0.2.1",
+    "mypy==1.8.0",
+    "black==24.8.0",
+]

@@ -1,0 +1,16 @@
+# AUTO GENERATED FILE, DO NOT EDIT
+# Run `make requirements.txt` to generate this file
+
+# project.dependencies
+scipy
+numpy
+jax
+matplotlib
+pandas
+plotly
+
+# project.dependencies.dev
+isort==5.13.2
+ruff==0.2.1
+mypy==1.8.0
+black==24.8.0
