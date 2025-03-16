@@ -81,6 +81,7 @@ dependencies = [
     "matplotlib",
     "pandas",
     "plotly",
+    "tqdm",
 ]
 
 [project.optional-dependencies]
