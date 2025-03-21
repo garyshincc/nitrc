@@ -25,13 +25,13 @@ def main() -> None:
             for f_i, eeg_filepath in enumerate(nonrest_eeg_filepaths[task_name]):
                 X_total = np.loadtxt(eeg_filepath, delimiter=",")
                 # X_total = X_total[:, : 1000 * 10] # Clip to subset the data if desired
-                X_total = znorm(X_total)
                 X_total = butter_bandpass_filter(
                     X_total, lowcut=BP_MIN, highcut=BP_MAX, fs=FS
                 )
                 X_total = butter_bandstop_filter(
                     X_total, lowcut=NOTCH_MIN, highcut=NOTCH_MAX, fs=FS
                 )
+                X_total = znorm(X_total)
 
                 num_splices = X_total.shape[-1] // N
                 if num_splices < 1:

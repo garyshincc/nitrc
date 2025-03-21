@@ -22,6 +22,14 @@ def butter_bandstop_filter(
     return y
 
 
+def channel_filter(x: np.ndarray) -> Any:
+    var_per_channel = np.var(x, axis=1)
+    good_channels = (var_per_channel > 1e-6) & (
+        var_per_channel < 1e6
+    )  # Arbitrary thresholds
+    return x[good_channels, :]
+
+
 def collect_resting_state_files() -> List[str]:
     # Define the pattern to search for
     dir_path = os.path.dirname(
