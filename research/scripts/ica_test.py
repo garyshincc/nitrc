@@ -20,13 +20,12 @@ def main() -> None:
     for _, rest_eeg_filepath in enumerate(rest_eeg_filepaths[2:3]):
         X = np.loadtxt(
             rest_eeg_filepath, delimiter=","
-        )  # of shape [128, signal length]
+        )
         X = X[:128, :max_T]
         X = butter_bandpass_filter(X, lowcut=BP_MIN, highcut=BP_MAX, fs=FS)
         X = butter_bandstop_filter(X, lowcut=NOTCH_MIN, highcut=NOTCH_MAX, fs=FS)
         X = znorm(X)
 
-        # Create MNE Raw object
         montage = mne.channels.read_custom_montage("GSN_HydroCel_129.sfp")
         montage_ch_names = [
             ch for ch in montage.ch_names if ch.startswith("E") and ch != "Cz"
@@ -42,8 +41,6 @@ def main() -> None:
 
         sources = ica.get_sources(raw).get_data()
 
-        # Step 1: Visualize for manual inspection
-        # Plot time courses of all components
         fig, axes = plt.subplots(
             n_components, 1, figsize=(15, 2 * n_components), sharex=True
         )
@@ -57,7 +54,6 @@ def main() -> None:
         plt.tight_layout()
         plt.show()
 
-        # Plot topographies with proper head alignment
         ica.plot_components(
             picks=range(n_components),
             ch_type="eeg",
@@ -66,7 +62,6 @@ def main() -> None:
             show=True,
         )
 
-        # Optional: Print basic stats for thresholding guidance
         for i in range(n_components):
             kurt = scipy.stats.kurtosis(sources[i])
             gamma_power = (

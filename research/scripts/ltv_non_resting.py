@@ -41,8 +41,8 @@ def main() -> None:
                 )
 
                 for x_i, X in enumerate(X_splices):
-                    A, b = train(X, num_epochs=100)
-                    loss = loss_fn(A, b, X)
+                    A = train(X, num_epochs=100)
+                    loss = loss_fn(A, X)
                     loss_across_subjects.append(loss)
             print(
                 f"task: {task_name}, f: {f_i}, N: {N}, loss: {np.mean(loss_across_subjects)}"

@@ -35,8 +35,8 @@ def main() -> None:
             X_splices = np.split(X_total[:, : num_splices * N], num_splices, axis=-1)
 
             for x_i, X in enumerate(X_splices):
-                A, b = train(X, num_epochs=100)
-                loss = loss_fn(A, b, X)
+                A = train(X, num_epochs=100)
+                loss = loss_fn(A, X)
                 loss_across_subjects.append(loss)
 
         print(f"N: {N}, f: {f_i}, x: {x_i}, loss: {np.mean(loss_across_subjects)}")
