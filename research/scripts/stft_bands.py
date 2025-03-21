@@ -35,7 +35,7 @@ def main() -> None:
 
         X_total = np.loadtxt(eeg_filepath, delimiter=",")
         X_total = X_total[:128, :total_window]  # Clip to subset the data if desired
-        
+
         X_total = butter_bandpass_filter(X_total, lowcut=BP_MIN, highcut=BP_MAX, fs=FS)
         X_total = butter_bandstop_filter(
             X_total, lowcut=NOTCH_MIN, highcut=NOTCH_MAX, fs=FS
@@ -50,7 +50,6 @@ def main() -> None:
         t_stft = SFT.t(total_window)
         f_stft = SFT.f
 
-
         mask = (f_stft > BP_MIN) * (f_stft < BP_MAX)
 
         Sx_magnitude = Sx_magnitude[:, mask, :]
@@ -59,11 +58,13 @@ def main() -> None:
         band_power = np.zeros((X_total.shape[0], len(bands), len(t_stft)))
         bands_name = []
         for i, (band, (f_low, f_high)) in enumerate(bands):
-            
+
             bands_name.append(band)
             bin_low = int(f_low)
             bin_high = int(f_high)
-            band_power[:, i] = np.sum(Sx_magnitude[:, bin_low : bin_high + 1, :], axis=1)
+            band_power[:, i] = np.sum(
+                Sx_magnitude[:, bin_low : bin_high + 1, :], axis=1
+            )
 
         fig = make_subplots(
             rows=1,
