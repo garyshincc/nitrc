@@ -40,3 +40,4 @@ dist/
 # Other miscellaneous files
 *.bak
 *.cache
+*.npy

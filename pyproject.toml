@@ -82,6 +82,7 @@ dependencies = [
     "pandas",
     "plotly",
     "tqdm",
+    "notebook",
 ]
 
 [project.optional-dependencies]
