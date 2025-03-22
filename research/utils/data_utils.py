@@ -6,6 +6,14 @@ import numpy as np
 from scipy.signal import butter, filtfilt
 
 
+def znorm(x: np.ndarray, axis: int = 1) -> Any:
+    mu = np.mean(x, axis=axis, keepdims=True)
+    std = np.std(x, axis=axis, keepdims=True, ddof=0)
+    std[std < 1e-8] = 1
+    x_norm = (x - mu) / std
+    return x_norm
+
+
 def butter_bandpass_filter(
     x: np.ndarray, lowcut: float, highcut: float, fs: int, order: int = 5
 ) -> Any:
@@ -74,11 +82,3 @@ def collect_non_resting_state_files() -> Dict[str, str]:
         file_paths[eeg_task].extend(glob.glob(search_pattern))
 
     return file_paths
-
-
-def znorm(x: np.ndarray, axis: int = 1) -> Any:
-    mu = np.mean(x, axis=axis, keepdims=True)
-    std = np.std(x, axis=axis, keepdims=True, ddof=0)
-    std[std < 1e-8] = 1
-    x_norm = (x - mu) / std
-    return x_norm

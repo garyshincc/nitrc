@@ -1,6 +1,5 @@
 import numpy as np
-import plotly.express as px
-from plotly.subplots import make_subplots
+import plotly.graph_objects as go
 from scipy.signal import ShortTimeFFT
 from scipy.signal.windows import gaussian
 
@@ -13,9 +12,10 @@ from research.utils.data_utils import (
 )
 
 N = 500
-N_SECONDS = 30
-WINDOW_SIZE = 512 * 2  # either could go 256 or 512
+N_SECONDS = 15
+WINDOW_SIZE = 512  # either could go 256 or 512
 HOP_SIZE = FS // 4
+CACHE_FILE = "data_cache/stft_bands.json"
 
 bands = [
     ("delta", (1, 4)),
@@ -25,13 +25,15 @@ bands = [
     ("gamma", (30, 100)),
 ]
 
+load_cache = False
+
 
 def main() -> None:
 
     rest_eeg_filepaths = collect_resting_state_files()
     total_window = N_SECONDS * N
 
-    for f_i, eeg_filepath in enumerate(rest_eeg_filepaths[:1]):
+    for f_i, eeg_filepath in enumerate(rest_eeg_filepaths):
 
         X_total = np.loadtxt(eeg_filepath, delimiter=",")
         X_total = X_total[:128, :total_window]  # Clip to subset the data if desired
@@ -42,41 +44,54 @@ def main() -> None:
         )
         X_total = znorm(X_total)
 
-        win = gaussian(WINDOW_SIZE, std=WINDOW_SIZE / 6, sym=True)
+        num_splices = X_total.shape[-1] // WINDOW_SIZE
+        if num_splices < 1:
+            continue
+        X_splices = np.split(X_total[:, : num_splices * N], num_splices, axis=-1)
+        subject_band_powers = np.zeros((num_splices, 5))
+        for x_i, X in enumerate(X_splices):
+            win = gaussian(WINDOW_SIZE, std=WINDOW_SIZE / 6, sym=True)
 
-        SFT = ShortTimeFFT(win=win, hop=HOP_SIZE, fs=FS, scale_to="magnitude")
-        Sx = SFT.stft(X_total)
-        Sx_magnitude = np.abs(Sx)
-        t_stft = SFT.t(total_window)
-        f_stft = SFT.f
+            SFT = ShortTimeFFT(win=win, hop=HOP_SIZE, fs=FS, scale_to="magnitude")
+            Sx = SFT.stft(X)
+            Sx_magnitude = np.abs(Sx)
+            t_stft = SFT.t(X.shape[-1])
+            band_power = np.zeros(
+                (X.shape[0], len(bands), len(t_stft))
+            )  # of shape (n_channels, 5, T)
 
-        mask = (f_stft > BP_MIN) * (f_stft < BP_MAX)
+            for i, (band, (f_low, f_high)) in enumerate(bands):
+                bin_low = int(np.floor(f_low * WINDOW_SIZE / FS))
+                bin_high = int(np.ceil(f_high * WINDOW_SIZE / FS))
 
-        Sx_magnitude = Sx_magnitude[:, mask, :]
-        f_stft = f_stft[mask]
+                band_power[:, i] = np.mean(
+                    Sx_magnitude[:, bin_low : bin_high + 1, :] ** 2, axis=1
+                )
+            subject_band_powers[x_i] = np.mean(band_power, axis=(0, 2))
 
-        band_power = np.zeros((X_total.shape[0], len(bands), len(t_stft)))
-        bands_name = []
-        for i, (band, (f_low, f_high)) in enumerate(bands):
+        data_sum = np.sum(subject_band_powers, axis=-1)
+        subject_band_powers = subject_band_powers / np.expand_dims(data_sum, axis=1)
 
-            bands_name.append(band)
-            bin_low = int(f_low)
-            bin_high = int(f_high)
-            band_power[:, i] = np.sum(
-                Sx_magnitude[:, bin_low : bin_high + 1, :], axis=1
+        subjects = np.arange(subject_band_powers.shape[0])
+        fig = go.Figure(
+            data=go.Parcoords(
+                line=dict(
+                    color=subjects,
+                    showscale=True,
+                ),
+                dimensions=[
+                    dict(label="Delta", values=subject_band_powers[:, 0], range=(0, 1)),
+                    dict(label="Theta", values=subject_band_powers[:, 1], range=(0, 1)),
+                    dict(label="Alpha", values=subject_band_powers[:, 2], range=(0, 1)),
+                    dict(label="Beta", values=subject_band_powers[:, 3], range=(0, 1)),
+                    dict(label="Gamma", values=subject_band_powers[:, 4], range=(0, 1)),
+                ],
             )
-
-        fig = make_subplots(
-            rows=1,
-            cols=1,
-            shared_yaxes=True,
         )
-
-        # Pick a random channel to show.
-        fig.add_trace(px.imshow(band_power[1], y=bands_name).data[0], row=1, col=1)
-        fig.update_layout(title="Band power over time", showlegend=False)
+        fig.update_layout(
+            title="Average Power per Band Across Subjects", yaxis_title="Power"
+        )
         fig.show()
-        quit()
 
 
 if __name__ == "__main__":

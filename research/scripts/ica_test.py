@@ -18,9 +18,7 @@ def main() -> None:
     n_components = 20
 
     for _, rest_eeg_filepath in enumerate(rest_eeg_filepaths[2:3]):
-        X = np.loadtxt(
-            rest_eeg_filepath, delimiter=","
-        )
+        X = np.loadtxt(rest_eeg_filepath, delimiter=",")
         X = X[:128, :max_T]
         X = butter_bandpass_filter(X, lowcut=BP_MIN, highcut=BP_MAX, fs=FS)
         X = butter_bandstop_filter(X, lowcut=NOTCH_MIN, highcut=NOTCH_MAX, fs=FS)
