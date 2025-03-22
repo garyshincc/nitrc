@@ -30,3 +30,7 @@ fix: ## Lint code, auto-fix and generate pipelines' configurations
 requirements.txt: pyproject.toml $(PROJ_DIR)/ci/generate_requirements.py ## Generate requirements.txt from pyproject.toml
 	$(PYTHON) $(PROJ_DIR)/ci/generate_requirements.py -i $< -o $@
 
+.PHONY: clean_cache
+clean_cache:
+	@echo "Clearing Data Cache..."
+	rm data_cache/*
