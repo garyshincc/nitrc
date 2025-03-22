@@ -52,11 +52,17 @@ def collect_resting_state_files() -> List[str]:
 
     # Use glob to find all matching files
     file_paths = glob.glob(search_pattern)
-    file_paths = [
-        file_path for file_path in file_paths if file_path not in SKIP_SUBJECT_LIST
-    ]
+    filtered_file_paths = []
+    for file_path in file_paths:
+        subject_id = os.path.basename(
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.dirname(file_path)))
+            )
+        )
+        if subject_id not in SKIP_SUBJECT_LIST:
+            filtered_file_paths.append(file_path)
 
-    return file_paths
+    return filtered_file_paths
 
 
 EEG_TASK_MAP = {
