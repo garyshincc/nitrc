@@ -5,6 +5,9 @@ from typing import Any, Dict, List
 import numpy as np
 from scipy.signal import butter, filtfilt
 
+# If a subject has faulty data
+SKIP_SUBJECT_LIST = "NDARBH789CUP"
+
 
 def znorm(x: np.ndarray, axis: int = 1) -> Any:
     mu = np.mean(x, axis=axis, keepdims=True)
@@ -49,11 +52,15 @@ def collect_resting_state_files() -> List[str]:
 
     # Use glob to find all matching files
     file_paths = glob.glob(search_pattern)
+    file_paths = [
+        file_path for file_path in file_paths if file_path not in SKIP_SUBJECT_LIST
+    ]
 
     return file_paths
 
 
 EEG_TASK_MAP = {
+    # "Resting": "RestingState_data.csv",
     "SAIIT2AFC": "SAIIT_2AFC_Block1_data.csv",
     "SurroundSuppression": "SurroundSupp_Block1_data.csv",
     "VideoDecisionMaking": "Video-DM_data.csv",
@@ -65,9 +72,9 @@ EEG_TASK_MAP = {
 }
 
 
-def collect_non_resting_state_files() -> Dict[str, str]:
+def collect_non_resting_state_files() -> Dict[str, List[str]]:
     # Define the pattern to search for
-    file_paths = {}
+    nonrest_files = {}
     for eeg_task, filename in EEG_TASK_MAP.items():
         dir_path = os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -76,9 +83,14 @@ def collect_non_resting_state_files() -> Dict[str, str]:
             dir_path, "data", "*", "EEG", "raw", "csv_format", filename
         )
 
-        # Use glob to find all matching files
-        if eeg_task not in file_paths:
-            file_paths[eeg_task] = []
-        file_paths[eeg_task].extend(glob.glob(search_pattern))
+        if eeg_task not in nonrest_files:
+            nonrest_files[eeg_task] = []
 
-    return file_paths
+        file_paths = glob.glob(search_pattern)
+        file_paths = [
+            file_path for file_path in file_paths if file_path not in SKIP_SUBJECT_LIST
+        ]
+
+        nonrest_files[eeg_task].extend(file_paths)
+
+    return nonrest_files

@@ -83,6 +83,7 @@ dependencies = [
     "plotly",
     "tqdm",
     "notebook",
+    "mne",
 ]
 
 [project.optional-dependencies]
