@@ -83,7 +83,7 @@ def collect_resting_state_files() -> List[str]:
 
 
 EEG_TASK_MAP = {
-    # "Resting": "RestingState_data.csv",
+    "Resting": "RestingState_data.csv",
     "SAIIT2AFC": "SAIIT_2AFC_Block1_data.csv",
     "SurroundSuppression": "SurroundSupp_Block1_data.csv",
     "VideoDecisionMaking": "Video-DM_data.csv",
@@ -180,3 +180,32 @@ def get_subject_band_powers(
         subject_band_powers[x_i] = np.mean(band_power, axis=(0, 2))
     np.save(cache_filename, subject_band_powers)
     return subject_band_powers
+
+
+def detect_outliers(
+    data: np.ndarray, subject_ids: list, band_name: str, multiplier: float = 1.5
+) -> list:
+    """
+    Detect outliers in a 1D array using the IQR method.
+
+    Args:
+        data: Array of values (e.g., power for a specific band across subjects).
+        subject_ids: List of subject IDs corresponding to data.
+        band_name: Name of the band (e.g., "Delta") for reporting.
+        multiplier: IQR multiplier (default 1.5 for standard outliers).
+
+    Returns:
+        List of subject IDs identified as outliers.
+    """
+    q1 = np.percentile(data, 25)
+    q3 = np.percentile(data, 75)
+    iqr = q3 - q1
+    lower_bound = q1 - multiplier * iqr
+    upper_bound = q3 + multiplier * iqr
+
+    outlier_mask = (data < lower_bound) | (data > upper_bound)
+    outlier_subjects = [
+        subject_ids[i] for i in range(len(subject_ids)) if outlier_mask[i]
+    ]
+
+    return outlier_subjects

@@ -76,7 +76,6 @@ def main() -> None:
         fig.add_trace(px.imshow(band_power[1], y=bands_name).data[0], row=1, col=1)
         fig.update_layout(title="Band power over time", showlegend=False)
         fig.show()
-        quit()
 
 
 if __name__ == "__main__":

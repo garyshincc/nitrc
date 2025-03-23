@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from research.config import FS
 from research.utils.data_utils import (
     collect_non_resting_state_files,
+    detect_outliers,
     get_subject_band_powers,
 )
 from research.utils.visualization_utils import cluster_and_visualize
@@ -52,11 +53,37 @@ def main() -> None:
 
             data_by_task[f_i] = np.mean(subject_task_band_powers, axis=0)
 
+        outlier_dict = {}
+        for b_i, (band_name, _) in enumerate(bands):
+
+            outliers = detect_outliers(
+                data_by_task[:, b_i], subject_ids=subject_ids, band_name=band_name
+            )
+            outlier_dict[band_name] = outliers
+
+        colors = np.zeros(len(subject_ids))
+        all_outliers = set()
+        for band_name in outlier_dict:
+            all_outliers.update(outlier_dict[band_name])
+        for i, subj_id in enumerate(subject_ids):
+            if subj_id in all_outliers:
+                colors[i] = 1  # Mark as outlier
+
+        # Define custom colorscale: 0 -> Viridis-like, 1 -> Red
+        custom_colorscale = [
+            [0, "rgb(68, 1, 84)"],  # Viridis start
+            [0.5, "rgb(40, 160, 120)"],  # Viridis mid
+            [0.99, "rgb(237, 231, 36)"],  # Viridis end
+            [1, "rgb(255, 0, 0)"],  # Red for outliers
+        ]
+
         fig = go.Figure(
             data=go.Parcoords(
                 line=dict(
-                    color=np.arange(len(subject_ids)),
-                    colorscale="Viridis",
+                    color=colors,
+                    colorscale=custom_colorscale,
+                    cmin=0,
+                    cmax=1,
                 ),
                 dimensions=[
                     dict(label="Delta", values=data_by_task[:, 0], range=(0, 1)),
