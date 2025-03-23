@@ -110,11 +110,17 @@ def collect_non_resting_state_files() -> Dict[str, List[str]]:
             nonrest_files[eeg_task] = []
 
         file_paths = glob.glob(search_pattern)
-        file_paths = [
-            file_path for file_path in file_paths if file_path not in SKIP_SUBJECT_LIST
-        ]
+        file_paths_filtered = []
+        for file_path in file_paths:
+            subject_id = os.path.basename(
+                os.path.dirname(
+                    os.path.dirname(os.path.dirname(os.path.dirname(file_path)))
+                )
+            )
+            if subject_id not in SKIP_SUBJECT_LIST:
+                file_paths_filtered.append(file_path)
 
-        nonrest_files[eeg_task].extend(file_paths)
+        nonrest_files[eeg_task].extend(file_paths_filtered)
 
     return nonrest_files
 

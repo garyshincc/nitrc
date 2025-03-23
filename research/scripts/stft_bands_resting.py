@@ -77,11 +77,19 @@ def main() -> None:
                 colorscale="Viridis",  # Pick any colorscale
             ),
             dimensions=[
-                dict(label="Delta", values=all_subjects_band_powers[:, 0], range=(0, 1)),
-                dict(label="Theta", values=all_subjects_band_powers[:, 1], range=(0, 1)),
-                dict(label="Alpha", values=all_subjects_band_powers[:, 2], range=(0, 1)),
+                dict(
+                    label="Delta", values=all_subjects_band_powers[:, 0], range=(0, 1)
+                ),
+                dict(
+                    label="Theta", values=all_subjects_band_powers[:, 1], range=(0, 1)
+                ),
+                dict(
+                    label="Alpha", values=all_subjects_band_powers[:, 2], range=(0, 1)
+                ),
                 dict(label="Beta", values=all_subjects_band_powers[:, 3], range=(0, 1)),
-                dict(label="Gamma", values=all_subjects_band_powers[:, 4], range=(0, 1)),
+                dict(
+                    label="Gamma", values=all_subjects_band_powers[:, 4], range=(0, 1)
+                ),
             ],
         )
     )

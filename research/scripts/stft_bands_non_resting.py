@@ -28,7 +28,6 @@ def main() -> None:
 
     nonrest_eeg_filepaths = collect_non_resting_state_files()
 
-    data_by_task = {}
     inertias = []
     silhouettes = []
     for t_i, (task_name, eeg_filepaths) in enumerate(nonrest_eeg_filepaths.items()):
@@ -69,8 +68,8 @@ def main() -> None:
             )
         )
         fig.update_layout(
-            title=f'Average Power band at task {task_name} across subjects',
-            yaxis_title='Power',
+            title=f"Average Power band at task {task_name} across subjects",
+            yaxis_title="Power",
         )
         fig.show()
         inertia, silhouette = cluster_and_visualize(
@@ -82,6 +81,7 @@ def main() -> None:
         )
         inertias.append(inertia)
         silhouettes.append(silhouette)
+
 
 if __name__ == "__main__":
     main()
