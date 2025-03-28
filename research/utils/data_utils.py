@@ -25,8 +25,10 @@ bands = [
     ("gamma", (30, 100)),
 ]
 
+### Data Pre-processing methods
 
-def znorm(x: np.ndarray, axis: int = 1) -> Any:
+
+def znorm(x: np.ndarray, axis: int = -1) -> Any:
     mu = np.mean(x, axis=axis, keepdims=True)
     std = np.std(x, axis=axis, keepdims=True, ddof=0)
     std[std < 1e-8] = 1
@@ -50,12 +52,48 @@ def butter_bandstop_filter(
     return y
 
 
-def channel_filter(x: np.ndarray) -> Any:
-    var_per_channel = np.var(x, axis=1)
-    good_channels = (var_per_channel > 1e-6) & (
-        var_per_channel < 1e6
-    )  # Arbitrary thresholds
-    return x[good_channels, :]
+def fill_flat_channels(
+    x: np.ndarray, std_threshold: float = 1e-5, fillval: float = np.nan
+) -> np.ndarray:
+    """
+    Set channels with low standard deviation (flat lines) to fillval.
+
+    Parameters:
+    - x: np.ndarray, shape [n_channels, n_samples], EEG data
+    - std_threshold: float, threshold below which a channel is considered flat (default 1e-5)
+
+    Returns:
+    - x: np.ndarray, same shape as input, with flat channels set to NaN
+    """
+    std = np.std(x, axis=-1)
+    mask = std < std_threshold
+    x[mask, :] = fillval
+
+    return x
+
+
+def fill_wack_channels(
+    x: np.ndarray, wack_threshold: float = 1e5, fillval: float = np.nan
+) -> np.ndarray:
+    """
+    Set channels with extreme to NaN.
+
+    Parameters:
+    - x: np.ndarray, shape [n_channels, n_samples], EEG data
+    - std_threshold: float, threshold below which a channel is considered flat (default 1e-5)
+
+    Returns:
+    - x: np.ndarray, same shape as input, with flat channels set to NaN
+    """
+    ch_max = np.max(x, axis=-1)
+    ch_min = np.min(x, axis=-1)
+    mask = np.abs(ch_max - ch_min) > wack_threshold
+    x[mask, :] = fillval
+
+    return x
+
+
+### Data loading methods
 
 
 def collect_resting_state_files() -> List[str]:
@@ -83,7 +121,7 @@ def collect_resting_state_files() -> List[str]:
 
 
 EEG_TASK_MAP = {
-    "Resting": "RestingState_data.csv",
+    # "Resting": "RestingState_data.csv",
     "SAIIT2AFC": "SAIIT_2AFC_Block1_data.csv",
     "SurroundSuppression": "SurroundSupp_Block1_data.csv",
     "VideoDecisionMaking": "Video-DM_data.csv",
@@ -125,11 +163,15 @@ def collect_non_resting_state_files() -> Dict[str, List[str]]:
     return nonrest_files
 
 
+### Data analysis methods
+
+
 def get_subject_band_powers(
     subject_eeg_file: str,
     total_window: int = -1,
     splice_seconds: int = 2,
     use_cache: bool = True,
+    n_ch: int = 128,
 ) -> Any:  # output should be of shape (n_splices, 5)
 
     subject_id = os.path.basename(
@@ -148,18 +190,21 @@ def get_subject_band_powers(
         except FileNotFoundError:
             pass
     X_total = np.loadtxt(subject_eeg_file, delimiter=",")
-    X_total = X_total[:128, :total_window]  # Clip to subset the data if desired
+    n_ch = min(X_total.shape[0], n_ch)
+    X_total = X_total[:n_ch, :total_window]  # Clip to subset the data if desired
     X_total = butter_bandpass_filter(X_total, lowcut=BP_MIN, highcut=BP_MAX, fs=FS)
     X_total = butter_bandstop_filter(
         X_total, lowcut=NOTCH_MIN, highcut=NOTCH_MAX, fs=FS
     )
     X_total = znorm(X_total)
+
     num_splices = X_total.shape[-1] // (splice_seconds * FS)
     if num_splices < 1:
         return np.array()
     X_splices = np.split(X_total[:, : num_splices * FS], num_splices, axis=-1)
-    subject_band_powers = np.zeros((num_splices, 5))
+    subject_band_powers = np.zeros((num_splices, n_ch, 5))
     for x_i, X in enumerate(X_splices):
+
         win = gaussian(WINDOW_SIZE, std=WINDOW_SIZE / 6, sym=True)
 
         SFT = ShortTimeFFT(win=win, hop=HOP_SIZE, fs=FS, scale_to="magnitude")
@@ -177,7 +222,7 @@ def get_subject_band_powers(
             band_power[:, i] = np.mean(
                 Sx_magnitude[:, bin_low : bin_high + 1, :] ** 2, axis=1
             )
-        subject_band_powers[x_i] = np.mean(band_power, axis=(0, 2))
+        subject_band_powers[x_i] = np.mean(band_power, axis=-1)
     np.save(cache_filename, subject_band_powers)
     return subject_band_powers
 

@@ -7,45 +7,42 @@ from research.utils.data_utils import (
     butter_bandpass_filter,
     butter_bandstop_filter,
     collect_resting_state_files,
-    znorm,
+    fill_flat_channels,
+    fill_wack_channels,
 )
 
 
 def main() -> None:
-    max_T = FS * 10  # seconds
+    max_T = FS * 5  # seconds
+    N_CH = 128
     rest_eeg_filepaths = collect_resting_state_files()
+    rest_eeg_filepath = rest_eeg_filepaths[0]
 
-    for _, rest_eeg_filepath in enumerate(rest_eeg_filepaths[:1]):
-        X = np.loadtxt(
-            rest_eeg_filepath, delimiter=","
-        )  # of shape [128, signal length]
-        X = X[1:, :max_T]
-        T = np.linspace(0, max_T, max_T)
-        N_CH = 128
+    X = np.loadtxt(rest_eeg_filepath, delimiter=",")  # of shape [128, signal length]
+    X = X[:N_CH, :max_T]
+    T = np.linspace(0, max_T, max_T)
 
-        fig = make_subplots(rows=N_CH * 4, cols=1, shared_xaxes=False)
+    fig = make_subplots(rows=N_CH * 2, cols=1, shared_xaxes=False)
 
-        for ch_i in range(N_CH):
-            scat = go.Scatter(x=T, y=X[ch_i], mode="lines", name=f"ch {ch_i}")
-            fig.add_trace(scat, row=(2 * ch_i) + 1, col=1)
+    for ch_i in range(N_CH):
+        scat = go.Scatter(x=T, y=X[ch_i], mode="lines", name=f"ch {ch_i}")
+        fig.add_trace(scat, row=(2 * ch_i) + 1, col=1)
 
-        X = butter_bandpass_filter(X, lowcut=BP_MIN, highcut=BP_MAX, fs=FS)
-        for ch_i in range(N_CH):
-            scat = go.Scatter(x=T, y=X[ch_i], mode="lines", name=f"BP ch {ch_i}")
-            fig.add_trace(scat, row=(2 * ch_i) + 2, col=1)
+    X = fill_flat_channels(X, fillval=0)
+    X = fill_wack_channels(X, fillval=0)
 
-        X = butter_bandstop_filter(X, lowcut=NOTCH_MIN, highcut=NOTCH_MAX, fs=FS)
-        for ch_i in range(N_CH):
-            scat = go.Scatter(x=T, y=X[ch_i], mode="lines", name=f"BP BS ch {ch_i}")
-            fig.add_trace(scat, row=(2 * ch_i) + 3, col=1)
+    X = butter_bandpass_filter(X, lowcut=BP_MIN, highcut=BP_MAX, fs=FS)
+    for ch_i in range(N_CH):
+        scat = go.Scatter(x=T, y=X[ch_i], mode="lines", name=f"BP ch {ch_i}")
+        fig.add_trace(scat, row=(2 * ch_i) + 2, col=1)
 
-        X = znorm(X)
-        for ch_i in range(N_CH):
-            scat = go.Scatter(x=T, y=X[ch_i], mode="lines", name=f"ch {ch_i}")
-            fig.add_trace(scat, row=(2 * ch_i) + 4, col=1)
+    X = butter_bandstop_filter(X, lowcut=NOTCH_MIN, highcut=NOTCH_MAX, fs=FS)
+    for ch_i in range(N_CH):
+        scat = go.Scatter(x=T, y=X[ch_i], mode="lines", name=f"BP BS ch {ch_i}")
+        fig.add_trace(scat, row=(2 * ch_i) + 2, col=1)
 
-        fig.update_layout(height=300 * N_CH, title_text="Raw Signals v.s. Filtered")
-        fig.show()
+    fig.update_layout(height=300 * N_CH, title_text="Raw Signals v.s. Processed")
+    fig.show()
 
 
 if __name__ == "__main__":

@@ -18,14 +18,11 @@ def model(A: jnp.ndarray, x: jnp.ndarray) -> Any:
 # Mean squared error loss function
 @jax.jit
 def loss_fn(A: jnp.ndarray, x_t: jnp.ndarray, x_t_1: jnp.ndarray) -> Any:
-    # x_t = x[:, :-1]  # Current state
-    # x_t_1 = x[:, 1:]  # Next state
-
     y_hat = model(A, x_t)
     return jnp.mean(jnp.linalg.norm(y_hat - x_t_1, axis=-1) ** 2)
 
 
-grad_loss = grad(loss_fn)  # Gradient of loss w.r.t.
+grad_loss = grad(loss_fn)
 
 
 @jit
@@ -46,9 +43,12 @@ def update(A: jnp.ndarray, x_t: jnp.ndarray, x_t_1: jnp.ndarray, lr: float = LR)
 
 # Gradient descent optimization
 def train(
-    X: jnp.ndarray, learning_rate: float = LR, num_epochs: int = 100, tau: int = 1,
+    X: jnp.ndarray,
+    learning_rate: float = LR,
+    num_epochs: int = 100,
+    tau: int = 1,
 ) -> jnp.ndarray:
-    A: jnp.ndarray = 0 + 0.01 * random.normal(key, (X.shape[0], X.shape[0]))
+    A: jnp.ndarray = 0 + 0.001 * random.normal(key, (X.shape[0], X.shape[0]))
     for _ in range(num_epochs):
         x_t = X[:, :-tau]  # Current state
         x_t_1 = X[:, tau:]  # Next state
