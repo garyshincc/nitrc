@@ -15,6 +15,7 @@ from research.utils.data_utils import (
 
 def main() -> None:
     N = 1000  # sample
+    Tau = 100
     rest_eeg_filepaths = collect_resting_state_files()
 
     for f_i, rest_eeg_filepath in enumerate(rest_eeg_filepaths[:1]):
@@ -37,16 +38,15 @@ def main() -> None:
 
         # Train model on each splice
         for x_i, X in enumerate(X_splices):
-            A, b = train(X, num_epochs=100)
-
+            A = train(X, num_epochs=100, tau=Tau)
             # Predict next state
-            yhat: jnp.ndarray = A @ X[:, :-1] + b[:, None]
-            yhats[:, x_i * N : (x_i + 1) * N - 1] = yhat
-            ys[:, x_i * N : (x_i + 1) * N - 1] = X[:, 1:]
+            yhat: jnp.ndarray = A @ X[:, :-Tau]
+            yhats[:, x_i * N : (x_i + 1) * N - Tau] = yhat
+            ys[:, x_i * N : (x_i + 1) * N - Tau] = X[:, Tau:]
 
         # Create time axis in seconds
         T: np.ndarray = np.linspace(
-            0, (X_total.shape[-1] - 1) / FS, X_total.shape[-1] - 1
+            0, (X_total.shape[-1] - Tau) / FS, X_total.shape[-1] - Tau
         )
 
         # Create a single figure with subplots for each channel

@@ -12,15 +12,16 @@ from research.utils.data_utils import (
 
 
 def main() -> None:
+    N = 250
     rest_eeg_filepaths = collect_resting_state_files()
-    N_list = [125, 250, 500, 1000]
-    loss_grid = np.zeros(len(N_list))
+    Tau_list = [1, 5, 10, 20, 50]
+    loss_grid = np.zeros(len(Tau_list))
 
-    for n_i, N in enumerate(N_list):
+    for t_i, Tau in enumerate(Tau_list):
         loss_across_subjects = []
         for f_i, rest_eeg_filepath in enumerate(rest_eeg_filepaths):
             X_total = np.loadtxt(rest_eeg_filepath, delimiter=",")
-            # X_total = X_total[:, : 1000 * 10] # Clip to subset the data if desired
+            X_total = X_total[:, : 1000 * 10] # Clip to subset the data if desired
             X_total = butter_bandpass_filter(
                 X_total, lowcut=BP_MIN, highcut=BP_MAX, fs=FS
             )
@@ -35,16 +36,16 @@ def main() -> None:
             X_splices = np.split(X_total[:, : num_splices * N], num_splices, axis=-1)
 
             for x_i, X in enumerate(X_splices):
-                A = train(X, num_epochs=100)
-                x_t = X[:, :-1]  # Current state
-                x_t_1 = X[:, 1:]  # Next state
+                A = train(X, num_epochs=100, tau=Tau)
+                x_t = X[:, :-Tau]  # Current state
+                x_t_1 = X[:, Tau:]  # Next state
                 loss = loss_fn(A, x_t, x_t_1)
                 loss_across_subjects.append(loss)
 
-        print(f"N: {N}, f: {f_i}, x: {x_i}, loss: {np.mean(loss_across_subjects)}")
-        loss_grid[n_i] = np.mean(loss_across_subjects)
+        print(f"Tau: {Tau}, f: {f_i}, loss: {np.mean(loss_across_subjects)}")
+        loss_grid[t_i] = np.mean(loss_across_subjects)
 
-    fig = px.imshow(loss_grid[:, None].T, x=[str(n) for n in N_list])
+    fig = px.imshow(loss_grid[:, None].T, x=[str(n) for n in Tau_list])
     fig.show()
 
 
