@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -9,16 +11,20 @@ from research.utils.data_utils import (
     collect_resting_state_files,
     fill_flat_channels,
     fill_wack_channels,
+    interpolate_faulty_channels,
 )
 
 
 def main() -> None:
     max_T = FS * 5  # seconds
     N_CH = 128
+
     rest_eeg_filepaths = collect_resting_state_files()
-    rest_eeg_filepath = rest_eeg_filepaths[0]
+    subject_i = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+    rest_eeg_filepath = rest_eeg_filepaths[subject_i]
 
     X = np.loadtxt(rest_eeg_filepath, delimiter=",")  # of shape [128, signal length]
+    max_T = X.shape[-1] // 2
     X = X[:N_CH, :max_T]
     T = np.linspace(0, max_T, max_T)
 
@@ -28,8 +34,9 @@ def main() -> None:
         scat = go.Scatter(x=T, y=X[ch_i], mode="lines", name=f"ch {ch_i}")
         fig.add_trace(scat, row=(2 * ch_i) + 1, col=1)
 
-    X = fill_flat_channels(X, fillval=0)
-    X = fill_wack_channels(X, fillval=0)
+    X = fill_flat_channels(X, fillval=np.nan)
+    X = fill_wack_channels(X, fillval=np.nan)
+    X = interpolate_faulty_channels(X, "GSN_HydroCel_129.sfp", fs=FS)
 
     X = butter_bandpass_filter(X, lowcut=BP_MIN, highcut=BP_MAX, fs=FS)
     for ch_i in range(N_CH):

@@ -3,6 +3,9 @@ import os
 from typing import Any, Dict, List
 
 import numpy as np
+from mne import create_info
+from mne.channels import read_custom_montage
+from mne.io import RawArray
 from scipy.signal import ShortTimeFFT, butter, filtfilt
 from scipy.signal.windows import gaussian
 
@@ -73,7 +76,7 @@ def fill_flat_channels(
 
 
 def fill_wack_channels(
-    x: np.ndarray, wack_threshold: float = 1e5, fillval: float = np.nan
+    x: np.ndarray, wack_threshold: float = 5e5, fillval: float = np.nan
 ) -> np.ndarray:
     """
     Set channels with extreme to NaN.
@@ -93,7 +96,76 @@ def fill_wack_channels(
     return x
 
 
+def interpolate_faulty_channels(
+    X: np.ndarray, montage_filename: str, fs: int = FS
+) -> Any:
+    """
+    Interpolates faulty channels in EEG data marked with NaNs using spherical spline interpolation.
+
+    Parameters:
+    - X: ndarray, shape [n_channels, n_samples], EEG data with NaNs in faulty channels
+    - montage_filename: str, path to .sfp file with electrode positions
+    - fs: float, sampling frequency (default from config)
+
+    Returns:
+    - X_interp: ndarray, shape [n_channels, n_samples], EEG data with interpolated channels
+    """
+    n_channels, n_samples = X.shape
+
+    # Create channel names (assuming standard 128-channel layout, e.g., 'Ch1' to 'Ch128')
+    ch_names = [f"E{i+1}" for i in range(n_channels)]
+
+    # Create MNE Info object
+    info = create_info(ch_names=ch_names, sfreq=fs, ch_types="eeg")
+
+    montage = read_custom_montage(montage_filename)
+    # Filter montage to match the 128 data channels (exclude fiducials and Cz if not in data)
+    montage_ch_names = [ch for ch in montage.ch_names if ch.startswith("E")]
+    if len(montage_ch_names) != n_channels:
+        raise ValueError(
+            f"Montage has {len(montage_ch_names)} 'E' channels, expected {n_channels}."
+        )
+
+    # Ensure channel names match
+    if sorted(montage_ch_names) != sorted(ch_names):
+        raise ValueError("Montage channel names do not match expected E1-E128 format.")
+    info.set_montage(montage)
+
+    # Identify bad channels (fully NaN across time)
+    bads = [ch_names[i] for i in range(n_channels) if np.all(np.isnan(X[i]))]
+    print(f"Interpolating: {bads}")
+    info["bads"] = bads
+
+    raw = RawArray(X, info, verbose=False)
+    raw_interp = raw.interpolate_bads(raw, method="spline", verbose=False)
+
+    X_interp = raw_interp.get_data()
+
+    return X_interp
+
+
 ### Data loading methods
+
+
+def load_with_preprocessing(
+    filepath: str,
+    *,
+    n_ch: int = 128,
+    max_t: int = -1,
+    skip_znorm: bool = False,
+    skip_interpolation: bool = False,
+) -> Any:
+    X = np.loadtxt(filepath, delimiter=",")
+    X = X[:n_ch, :max_t]
+    X = fill_flat_channels(X, fillval=np.nan)
+    X = fill_wack_channels(X, fillval=np.nan)
+    if not skip_interpolation:
+        X = interpolate_faulty_channels(X, "GSN_HydroCel_129.sfp", fs=FS)
+    X = butter_bandpass_filter(X, lowcut=BP_MIN, highcut=BP_MAX, fs=FS)
+    X = butter_bandstop_filter(X, lowcut=NOTCH_MIN, highcut=NOTCH_MAX, fs=FS)
+    if not skip_znorm:
+        X = znorm(X)
+    return X
 
 
 def collect_resting_state_files() -> List[str]:
@@ -168,17 +240,20 @@ def collect_non_resting_state_files() -> Dict[str, List[str]]:
 
 def get_subject_band_powers(
     subject_eeg_file: str,
+    subject_id: str = "",
     total_window: int = -1,
-    splice_seconds: int = 2,
+    splice_seconds: int = 10,
     use_cache: bool = True,
     n_ch: int = 128,
+    skip_interpolation: bool = False,
 ) -> Any:  # output should be of shape (n_splices, 5)
 
-    subject_id = os.path.basename(
-        os.path.dirname(
-            os.path.dirname(os.path.dirname(os.path.dirname(subject_eeg_file)))
+    if not subject_id:
+        subject_id = os.path.basename(
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.dirname(subject_eeg_file)))
+            )
         )
-    )
     task_name = os.path.splitext(os.path.basename(subject_eeg_file))[0]
     cache_filename = os.path.join(
         CACHE_DIR, f"{subject_id}_{task_name}_band_powers.npy"
@@ -189,30 +264,27 @@ def get_subject_band_powers(
             return np.load(cache_filename)
         except FileNotFoundError:
             pass
-    X_total = np.loadtxt(subject_eeg_file, delimiter=",")
-    n_ch = min(X_total.shape[0], n_ch)
-    X_total = X_total[:n_ch, :total_window]  # Clip to subset the data if desired
-    X_total = butter_bandpass_filter(X_total, lowcut=BP_MIN, highcut=BP_MAX, fs=FS)
-    X_total = butter_bandstop_filter(
-        X_total, lowcut=NOTCH_MIN, highcut=NOTCH_MAX, fs=FS
+    X = load_with_preprocessing(
+        subject_eeg_file, max_t=total_window, skip_interpolation=skip_interpolation
     )
-    X_total = znorm(X_total)
 
-    num_splices = X_total.shape[-1] // (splice_seconds * FS)
+    num_splices = X.shape[-1] // (splice_seconds * FS)
     if num_splices < 1:
         return np.array()
-    X_splices = np.split(X_total[:, : num_splices * FS], num_splices, axis=-1)
+
+    X_splices = np.split(X[:, : num_splices * FS], num_splices, axis=-1)
     subject_band_powers = np.zeros((num_splices, n_ch, 5))
-    for x_i, X in enumerate(X_splices):
+    for x_i, x_splice in enumerate(X_splices):
 
         win = gaussian(WINDOW_SIZE, std=WINDOW_SIZE / 6, sym=True)
-
         SFT = ShortTimeFFT(win=win, hop=HOP_SIZE, fs=FS, scale_to="magnitude")
-        Sx = SFT.stft(X)
+
+        Sx = SFT.stft(x_splice)
         Sx_magnitude = np.abs(Sx)
-        t_stft = SFT.t(X.shape[-1])
+        t_stft = SFT.t(x_splice.shape[-1])
+
         band_power = np.zeros(
-            (X.shape[0], len(bands), len(t_stft))
+            (x_splice.shape[0], len(bands), len(t_stft))
         )  # of shape (n_channels, 5, T)
 
         for i, (band, (f_low, f_high)) in enumerate(bands):

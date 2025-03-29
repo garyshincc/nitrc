@@ -1,3 +1,4 @@
+import os
 import sys
 
 import numpy as np
@@ -7,15 +8,7 @@ from scipy.signal import ShortTimeFFT
 from scipy.signal.windows import gaussian
 
 from research.config import BP_MAX, BP_MIN, FS
-from research.utils.data_utils import (
-    collect_resting_state_files,
-    load_with_preprocessing,
-)
-
-N = 500
-N_SECONDS = 30
-WINDOW_SIZE = 512 * 2  # either could go 256 or 512
-HOP_SIZE = FS // 4
+from research.utils.data_utils import load_with_preprocessing
 
 bands = [
     ("delta", (1, 4)),
@@ -27,13 +20,19 @@ bands = [
 
 
 def main() -> None:
+    dirpath = "other_data/ibib_pan"
+    healthy_eeg_filenames = [f"h{str(i).zfill(2)}.csv" for i in range(1, 15)]
+    schizo_eeg_filenames = [f"s{str(i).zfill(2)}.csv" for i in range(1, 15)]
+    WINDOW_SIZE = 512 * 2  # either could go 256 or 512
+    HOP_SIZE = FS // 4
+    total_window = 500 * 30
 
-    rest_eeg_filepaths = collect_resting_state_files()
-    total_window = N_SECONDS * N
-    subject_i = int(sys.argv[1]) if len(sys.argv) > 1 else 1
-    eeg_filepath = rest_eeg_filepaths[subject_i]
+    subject_i = sys.argv[1] if len(sys.argv) > 1 else "h01.csv"
+    filepath = os.path.join(dirpath, subject_i)
 
-    X = load_with_preprocessing(eeg_filepath, max_t=total_window)
+    X = load_with_preprocessing(
+        filepath, max_t=total_window, n_ch=19, skip_interpolation=True
+    )
 
     win = gaussian(WINDOW_SIZE, std=WINDOW_SIZE / 6, sym=True)
 
