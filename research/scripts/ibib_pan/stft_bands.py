@@ -1,3 +1,4 @@
+import sys
 import os
 
 import numpy as np
@@ -5,7 +6,6 @@ import plotly.graph_objects as go
 
 from research.config import FS
 from research.utils.data_utils import (
-    collect_resting_state_files,
     get_subject_band_powers,
 )
 from research.utils.visualization_utils import cluster_and_visualize
@@ -28,25 +28,34 @@ load_cache = False
 
 def main() -> None:
 
-    rest_eeg_filepaths = collect_resting_state_files()
+    dirpath = "other_data/ibib_pan"
 
-    all_subjects_band_powers = np.zeros((len(rest_eeg_filepaths), 5))
+    healthy_eeg_filenames = [f"h{str(i).zfill(2)}.csv" for i in range(1, 15)]
+    schizo_eeg_filenames = [f"s{str(i).zfill(2)}.csv" for i in range(1, 15)]
+
+    all_eeg_filenames = healthy_eeg_filenames + schizo_eeg_filenames
+
+    all_subjects_band_powers = np.zeros((len(all_eeg_filenames), 5))
     subject_ids = []
-    for f_i, eeg_filepath in enumerate(rest_eeg_filepaths):
-        subject_id = os.path.basename(
-            os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.dirname(eeg_filepath)))
-            )
+    for f_i, eeg_filename in enumerate(all_eeg_filenames):
+        eeg_filepath = os.path.join(dirpath, eeg_filename)
+        subject_ids.append(eeg_filename)
+
+        subject_band_powers = get_subject_band_powers(
+            eeg_filepath,
+            subject_id=eeg_filename,
+            splice_seconds=10,
+            use_cache=False,
+            n_ch=19,
+            skip_interpolation=True,
         )
-        subject_ids.append(subject_id)
-
-        subject_band_powers = get_subject_band_powers(eeg_filepath, splice_seconds=10, use_cache=False)
         # (n_time_splices, n_channels, n_bands)
-        subject_band_powers = np.mean(subject_band_powers, axis=1)
-        data_sum = np.sum(subject_band_powers, axis=-1)
+        subject_band_powers = np.sum(subject_band_powers, axis=1) # across all channels
 
+        data_sum = np.sum(subject_band_powers, axis=-1) # across bands
         subject_band_powers = subject_band_powers / np.expand_dims(data_sum, axis=-1)
-        all_subjects_band_powers[f_i] = np.mean(subject_band_powers, axis=0)
+
+        all_subjects_band_powers[f_i] = np.mean(subject_band_powers, axis=0) # across all time
 
         fig = go.Figure(
             data=go.Parcoords(
@@ -60,7 +69,7 @@ def main() -> None:
             )
         )
         fig.update_layout(
-            title=f"Average Power band at rest for subject {subject_id}",
+            title=f"Average Power band at rest for subject {eeg_filename}",
             yaxis_title="Power",
         )
         fig.show()
