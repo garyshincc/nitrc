@@ -1,7 +1,7 @@
 import numpy as np
 import plotly.express as px
 
-from research.models.linear_dynamics import loss_fn, train
+from research.models.ltv import loss_fn, train
 from research.utils.data_utils import (
     collect_non_resting_state_files,
     load_with_preprocessing,
@@ -20,18 +20,19 @@ def main() -> None:
         for n_i, N in enumerate(N_list):
             loss_across_subjects = []
             for f_i, eeg_filepath in enumerate(nonrest_eeg_filepaths[task_name]):
-                X = load_with_preprocessing(eeg_filepath, max_t=1000)
+                X = load_with_preprocessing(eeg_filepath, max_t=100000)
+                X, Y = X[:, :-1], X[:, 1:]
 
                 num_splices = X.shape[-1] // N
                 if num_splices < 1:
                     continue
                 X_splices = np.split(X[:, : num_splices * N], num_splices, axis=-1)
+                Y_splices = np.split(Y[:, : num_splices * N], num_splices, axis=-1)
 
                 for x_i, x_splice in enumerate(X_splices):
+                    y_splice = Y_splices[x_i]
                     A = train(x_splice, num_epochs=100)
-                    x_t = x_splice[:, :-1]  # Current state
-                    x_t_1 = x_splice[:, 1:]  # Next state
-                    loss = loss_fn(A, x_t, x_t_1)
+                    loss = loss_fn(A, x_splice, y_splice)
                     loss_across_subjects.append(loss)
             print(
                 f"task: {task_name}, f: {f_i}, N: {N}, loss: {np.mean(loss_across_subjects)}"
