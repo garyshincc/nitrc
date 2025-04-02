@@ -38,9 +38,12 @@ def main() -> None:
                 os.path.dirname(os.path.dirname(os.path.dirname(eeg_filepath)))
             )
         )
+        print(subject_id)
         subject_ids.append(subject_id)
 
-        subject_band_powers = get_subject_band_powers(eeg_filepath, splice_seconds=10, use_cache=False)
+        subject_band_powers = get_subject_band_powers(
+            eeg_filepath, splice_seconds=10, total_window=100000, use_cache=False
+        )
         # (n_time_splices, n_channels, n_bands)
         subject_band_powers = np.mean(subject_band_powers, axis=1)
         data_sum = np.sum(subject_band_powers, axis=-1)

@@ -43,7 +43,7 @@ def main() -> None:
             subject_ids.append(subject_id)
 
             subject_task_band_powers = get_subject_band_powers(
-                eeg_filepath, splice_seconds=10
+                eeg_filepath, total_window=100000, splice_seconds=10
             )
 
             data_sum = np.sum(subject_task_band_powers, axis=-1)

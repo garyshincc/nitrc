@@ -22,7 +22,7 @@ def main() -> None:
     rest_eeg_filepaths = collect_resting_state_files()
     subject_i = int(sys.argv[1]) if len(sys.argv) > 1 else 1
     rest_eeg_filepath = rest_eeg_filepaths[subject_i]
-
+    print(rest_eeg_filepath)
     X = np.loadtxt(rest_eeg_filepath, delimiter=",")  # of shape [128, signal length]
     max_T = X.shape[-1] // 2
     X = X[:N_CH, :max_T]

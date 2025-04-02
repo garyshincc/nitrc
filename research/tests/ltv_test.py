@@ -4,7 +4,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from research.models.ltv import train, loss_fn
+from research.models.ltv import loss_fn, train
 from research.utils.data_utils import (
     collect_resting_state_files,
     load_with_preprocessing,
@@ -31,7 +31,7 @@ def main() -> None:
 
     yhats = []
     losses = []
-    
+
     # Train model on each splice
     for x_i, x_splice in enumerate(X_splices):
         y_splice = Y_splices[x_i]
@@ -43,7 +43,7 @@ def main() -> None:
         loss = loss_fn(A, x_splice, y_splice)
         losses.append(loss)
 
-    print(f'N: {N}, loss: {np.mean(losses)}')
+    print(f"N: {N}, loss: {np.mean(losses)}")
     # Create time axis in seconds
     ys = np.concat(Y_splices, axis=-1)
     yhats = np.concat(yhats, axis=-1)

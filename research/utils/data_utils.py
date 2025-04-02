@@ -31,11 +31,12 @@ bands = [
 ### Data Pre-processing methods
 
 
-def znorm(x: np.ndarray, axis: int = -1) -> Any:
+def znorm(x: np.ndarray, clamp: float = 5, axis: int = -1) -> Any:
     mu = np.mean(x, axis=axis, keepdims=True)
     std = np.std(x, axis=axis, keepdims=True, ddof=0)
     std[std < 1e-8] = 1
     x_norm = (x - mu) / std
+    x_norm = np.clip(x_norm, -clamp, clamp)
     return x_norm
 
 
@@ -76,7 +77,7 @@ def fill_flat_channels(
 
 
 def fill_wack_channels(
-    x: np.ndarray, wack_threshold: float = 5e5, fillval: float = np.nan
+    x: np.ndarray, wack_threshold: float = 2e5, fillval: float = np.nan
 ) -> np.ndarray:
     """
     Set channels with extreme to NaN.
@@ -154,15 +155,16 @@ def load_with_preprocessing(
     max_t: int = -1,
     skip_znorm: bool = False,
     skip_interpolation: bool = False,
+    fs: int = FS,
 ) -> Any:
     X = np.loadtxt(filepath, delimiter=",")
     X = X[:n_ch, :max_t]
     X = fill_flat_channels(X, fillval=np.nan)
     X = fill_wack_channels(X, fillval=np.nan)
     if not skip_interpolation:
-        X = interpolate_faulty_channels(X, "GSN_HydroCel_129.sfp", fs=FS)
-    X = butter_bandpass_filter(X, lowcut=BP_MIN, highcut=BP_MAX, fs=FS)
-    X = butter_bandstop_filter(X, lowcut=NOTCH_MIN, highcut=NOTCH_MAX, fs=FS)
+        X = interpolate_faulty_channels(X, "GSN_HydroCel_129.sfp", fs=fs)
+    X = butter_bandpass_filter(X, lowcut=BP_MIN, highcut=BP_MAX, fs=fs)
+    X = butter_bandstop_filter(X, lowcut=NOTCH_MIN, highcut=NOTCH_MAX, fs=fs)
     if not skip_znorm:
         X = znorm(X)
     return X
