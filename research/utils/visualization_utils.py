@@ -67,7 +67,7 @@ def cluster_and_visualize(
             df,
             x="PC1",
             y="PC2",
-            color="Status",
+            # color="Status",
             hover_data=["Subject"],
             title=f"K-Means Clustering of EEG Band Power for task {task_name}",
         )
