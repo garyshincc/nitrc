@@ -13,8 +13,8 @@ from research.utils.data_utils import (
 
 
 def main() -> None:
-    max_T = FS * 10  # seconds
-    n_components = 20
+    max_T = FS * 120  # seconds
+    n_components = 25
     eeg_filepaths = collect_resting_state_files()
     subject_i = int(sys.argv[1]) if len(sys.argv) > 1 else 1
     eeg_filepath = eeg_filepaths[subject_i]

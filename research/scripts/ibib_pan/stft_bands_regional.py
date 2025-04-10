@@ -1,5 +1,4 @@
 import os
-import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,8 +17,6 @@ bands = [
 def main() -> None:
     dirpath = "other_data/ibib_pan"
 
-    subject_id = sys.argv[1] if len(sys.argv) > 1 else "h01.csv"
-    
     healthy_eeg_filenames = [f"h{str(i).zfill(2)}.csv" for i in range(1, 15)]
     schizo_eeg_filenames = [f"s{str(i).zfill(2)}.csv" for i in range(1, 15)]
 

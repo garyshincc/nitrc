@@ -35,7 +35,10 @@ def main() -> None:
     )
 
     subject_band_powers = get_subject_band_powers(
-        eeg_filepath, splice_seconds=5, use_cache=False
+        eeg_filepath,
+        splice_seconds=5,
+        use_cache=False,
+        total_window=100000,
     )
 
     data_sum = np.sum(subject_band_powers, axis=-1)

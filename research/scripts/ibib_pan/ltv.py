@@ -6,7 +6,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from research.models.linear_dynamics import loss_fn, train
+from research.models.ltv import loss_fn, train
 from research.utils.data_utils import load_with_preprocessing
 
 
@@ -33,7 +33,6 @@ def compute_graph_metrics(
 
 
 def train_ltv(filepath: str, splice_size: int, tau: int, max_t: int = -1) -> Any:
-    print(filepath)
     X = load_with_preprocessing(
         filepath, skip_interpolation=True, n_ch=19, fs=250, max_t=max_t
     )
@@ -48,7 +47,7 @@ def train_ltv(filepath: str, splice_size: int, tau: int, max_t: int = -1) -> Any
     loss_across_subjects = []
     for x_i, x_splice in enumerate(X_splices):
         y_splice = Y_splices[x_i]
-        A = train(x_splice, y_splice, num_epochs=500, learning_rate=1e-4)
+        A = train(x_splice, y_splice, num_epochs=50, learning_rate=1e-4)
         loss = loss_fn(A, x_splice, y_splice)
         loss_across_subjects.append(loss)
     mean_loss = np.mean(loss_across_subjects)
@@ -62,13 +61,13 @@ def main() -> None:
 
     dirpath = "other_data/ibib_pan"
 
-    N_subj = 10
+    N_subj = 14
     healthy_eeg_filenames = [f"h{str(i).zfill(2)}.csv" for i in range(1, N_subj + 1)]
     schizo_eeg_filenames = [f"s{str(i).zfill(2)}.csv" for i in range(1, N_subj + 1)]
 
     all_healthy_stats = {}
     all_schizo_stats = {}
-    tau_list = [1, 5, 10, 50, 100, 500]
+    tau_list = [1, 5, 10, 50, 100, 500, 1000, 5000]
     for tau in tau_list:
         eigvals = []
         losses = []
@@ -78,7 +77,9 @@ def main() -> None:
         for healthy_eeg_filename in healthy_eeg_filenames:
             healthy_eeg_filepath = os.path.join(dirpath, healthy_eeg_filename)
 
-            A, mean_loss = train_ltv(healthy_eeg_filepath, splice_size=N, tau=tau, max_t=10000)
+            A, mean_loss = train_ltv(
+                healthy_eeg_filepath, splice_size=N, tau=tau, max_t=100000
+            )
             losses.append(mean_loss)
             eigvals.append(np.abs(np.linalg.eig(A)[0]))
             A = np.array(A)
@@ -106,7 +107,9 @@ def main() -> None:
         for schizo_eeg_filename in schizo_eeg_filenames:
             schizo_eeg_filepath = os.path.join(dirpath, schizo_eeg_filename)
 
-            A, mean_loss = train_ltv(schizo_eeg_filepath, splice_size=N, tau=tau, max_t=10000)
+            A, mean_loss = train_ltv(
+                schizo_eeg_filepath, splice_size=N, tau=tau, max_t=10000
+            )
             losses.append(mean_loss)
             eigvals.append(np.abs(np.linalg.eig(A)[0]))
             A = np.array(A)
@@ -140,9 +143,7 @@ def main() -> None:
         print(
             f"[healthy] tau: {tau}, E[modularities]: {round(np.mean(stats['modularities']), 4)}"
         )
-        print(
-            f"[healthy] tau: {tau}, E[losses]: {round(np.mean(stats['losses']), 4)}"
-        )
+        print(f"[healthy] tau: {tau}, E[losses]: {round(np.mean(stats['losses']), 4)}")
         healthy_eigvals.append(round(np.mean(stats["eigvals"]), 4))
         healthy_clustering.append(round(np.mean(stats["clustering"]), 4))
         healthy_efficiency.append(round(np.mean(stats["efficiencies"]), 4))
@@ -165,9 +166,7 @@ def main() -> None:
         print(
             f"[schizo] tau: {tau}, E[modularities]: {round(np.mean(stats['modularities']), 4)}"
         )
-        print(
-            f"[schizo] tau: {tau}, E[losses]: {round(np.mean(stats['losses']), 4)}"
-        )
+        print(f"[schizo] tau: {tau}, E[losses]: {round(np.mean(stats['losses']), 4)}")
         schizo_eigvals.append(round(np.mean(stats["eigvals"]), 4))
         schizo_clustering.append(round(np.mean(stats["clustering"]), 4))
         schizo_efficiency.append(round(np.mean(stats["efficiencies"]), 4))
@@ -176,26 +175,88 @@ def main() -> None:
 
     tau_list_str = [str(t) for t in tau_list]
     fig = make_subplots(rows=5, cols=1, shared_xaxes=True)
-    fig.add_trace(go.Scatter(x=tau_list_str, y=healthy_eigvals, mode="lines", name=f"healthy_eigvals"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=tau_list_str, y=schizo_eigvals, mode="lines", name=f"schizo_eigvals"), row=1, col=1)
+    fig.add_trace(
+        go.Scatter(
+            x=tau_list_str, y=healthy_eigvals, mode="lines", name=f"healthy_eigvals"
+        ),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=tau_list_str, y=schizo_eigvals, mode="lines", name=f"schizo_eigvals"
+        ),
+        row=1,
+        col=1,
+    )
 
-    fig.add_trace(go.Scatter(x=tau_list_str, y=healthy_clustering, mode="lines", name=f"healthy_clustering"), row=2, col=1)
-    fig.add_trace(go.Scatter(x=tau_list_str, y=schizo_clustering, mode="lines", name=f"schizo_clustering"), row=2, col=1)
-    
+    fig.add_trace(
+        go.Scatter(
+            x=tau_list_str,
+            y=healthy_clustering,
+            mode="lines",
+            name=f"healthy_clustering",
+        ),
+        row=2,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=tau_list_str, y=schizo_clustering, mode="lines", name=f"schizo_clustering"
+        ),
+        row=2,
+        col=1,
+    )
 
-    fig.add_trace(go.Scatter(x=tau_list_str, y=healthy_efficiency, mode="lines", name=f"healthy_efficiency"), row=3, col=1)
-    fig.add_trace(go.Scatter(x=tau_list_str, y=schizo_efficiency, mode="lines", name=f"schizo_efficiency"), row=3, col=1)
-    
+    fig.add_trace(
+        go.Scatter(
+            x=tau_list_str,
+            y=healthy_efficiency,
+            mode="lines",
+            name=f"healthy_efficiency",
+        ),
+        row=3,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=tau_list_str, y=schizo_efficiency, mode="lines", name=f"schizo_efficiency"
+        ),
+        row=3,
+        col=1,
+    )
 
-    fig.add_trace(go.Scatter(x=tau_list_str, y=healthy_modularity, mode="lines", name=f"healthy_modularity"), row=4, col=1)
-    fig.add_trace(go.Scatter(x=tau_list_str, y=schizo_modularity, mode="lines", name=f"schizo_modularity"), row=4, col=1)
-    
+    fig.add_trace(
+        go.Scatter(
+            x=tau_list_str,
+            y=healthy_modularity,
+            mode="lines",
+            name=f"healthy_modularity",
+        ),
+        row=4,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=tau_list_str, y=schizo_modularity, mode="lines", name=f"schizo_modularity"
+        ),
+        row=4,
+        col=1,
+    )
 
-    fig.add_trace(go.Scatter(x=tau_list_str, y=healthy_loss, mode="lines", name=f"healthy_loss"), row=5, col=1)
-    fig.add_trace(go.Scatter(x=tau_list_str, y=schizo_loss, mode="lines", name=f"schizo_loss"), row=5, col=1)
-    
+    fig.add_trace(
+        go.Scatter(x=tau_list_str, y=healthy_loss, mode="lines", name=f"healthy_loss"),
+        row=5,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(x=tau_list_str, y=schizo_loss, mode="lines", name=f"schizo_loss"),
+        row=5,
+        col=1,
+    )
 
     fig.show()
+
 
 if __name__ == "__main__":
     main()

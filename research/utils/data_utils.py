@@ -11,14 +11,12 @@ from scipy.signal.windows import gaussian
 
 from research.config import BP_MAX, BP_MIN, FS, NOTCH_MAX, NOTCH_MIN
 
-# If a subject has faulty data
-SKIP_SUBJECT_LIST = "NDARBH789CUP"
-
 N = 500
 N_SECONDS = 15
 WINDOW_SIZE = 512  # either could go 256 or 512
 HOP_SIZE = FS // 4
 CACHE_DIR = "data_cache"
+SEGMENT_SECONDS = 10
 
 bands = [
     ("delta", (1, 4)),
@@ -27,6 +25,12 @@ bands = [
     ("beta", (12, 30)),
     ("gamma", (30, 100)),
 ]
+
+# Manual rejection
+SUBJECT_REJECTION_MAP = {
+    "NDARBH789CUP": [(0, -1)],
+    "NDARAD459XJK": [(3500, 5000), (14000, 22500), (30000, 50000)],
+}
 
 ### Data Pre-processing methods
 
@@ -181,17 +185,8 @@ def collect_resting_state_files() -> List[str]:
 
     # Use glob to find all matching files
     file_paths = glob.glob(search_pattern)
-    filtered_file_paths = []
-    for file_path in file_paths:
-        subject_id = os.path.basename(
-            os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.dirname(file_path)))
-            )
-        )
-        if subject_id not in SKIP_SUBJECT_LIST:
-            filtered_file_paths.append(file_path)
 
-    return filtered_file_paths
+    return file_paths
 
 
 EEG_TASK_MAP = {
@@ -222,19 +217,42 @@ def collect_non_resting_state_files() -> Dict[str, List[str]]:
             nonrest_files[eeg_task] = []
 
         file_paths = glob.glob(search_pattern)
-        file_paths_filtered = []
-        for file_path in file_paths:
-            subject_id = os.path.basename(
-                os.path.dirname(
-                    os.path.dirname(os.path.dirname(os.path.dirname(file_path)))
-                )
-            )
-            if subject_id not in SKIP_SUBJECT_LIST:
-                file_paths_filtered.append(file_path)
-
-        nonrest_files[eeg_task].extend(file_paths_filtered)
+        nonrest_files[eeg_task].extend(file_paths)
 
     return nonrest_files
+
+
+def splice_and_reject(
+    X: np.ndarray, subject_id: str, fs: int = FS, segment_seconds: int = SEGMENT_SECONDS
+) -> Any:
+    """Expecting a (N_ch, T) array, splice to 10 second segments, then
+    if a segment is in the reject map, reject. return remaining data as
+    potentially non-contiguous data.
+    """
+    channels, total_samples = X.shape
+    segment_length = segment_seconds * fs
+    num_splices = total_samples // segment_length
+
+    # Step 1: Create a boolean mask for valid time points (True = keep)
+    valid_mask = np.ones(total_samples, dtype=bool)
+    for left, right in SUBJECT_REJECTION_MAP.get(subject_id, []):
+        valid_mask[left:right] = False
+
+    # Step 2: Reshape mask into segments
+    segment_masks = np.split(valid_mask[: num_splices * segment_length], num_splices)
+
+    # Step 3: Determine which segments are fully valid
+    keep_segment_indices = [
+        i for i, seg_mask in enumerate(segment_masks) if seg_mask.all()
+    ]
+
+    # Step 4: Split X into segments
+    X_segments = np.split(X[:, : num_splices * segment_length], num_splices, axis=-1)
+
+    # Step 5: Keep only the valid segments
+    filtered_segments = [X_segments[i] for i in keep_segment_indices]
+
+    return filtered_segments
 
 
 ### Data analysis methods
@@ -248,7 +266,7 @@ def get_subject_band_powers(
     use_cache: bool = True,
     n_ch: int = 128,
     skip_interpolation: bool = False,
-) -> Any:  # output should be of shape (n_splices, 5)
+) -> Any:
 
     if not subject_id:
         subject_id = os.path.basename(
@@ -269,13 +287,9 @@ def get_subject_band_powers(
     X = load_with_preprocessing(
         subject_eeg_file, max_t=total_window, skip_interpolation=skip_interpolation
     )
+    X_splices = splice_and_reject(X=X, subject_id=subject_id)
 
-    num_splices = X.shape[-1] // (splice_seconds * FS)
-    if num_splices < 1:
-        return np.array()
-
-    X_splices = np.split(X[:, : num_splices * FS], num_splices, axis=-1)
-    subject_band_powers = np.zeros((num_splices, n_ch, 5))
+    subject_band_powers = np.zeros((len(X_splices), n_ch, 5))
     for x_i, x_splice in enumerate(X_splices):
 
         win = gaussian(WINDOW_SIZE, std=WINDOW_SIZE / 6, sym=True)

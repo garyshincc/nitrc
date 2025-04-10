@@ -5,24 +5,25 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from research.models.linear_dynamics import loss_fn, train
+from research.models.ltv import loss_fn, train
 from research.utils.data_utils import load_with_preprocessing
 
 
 def main() -> None:
     N = 125
     N_CH = 19
-    tau = 500
+    tau = 250
 
     dirpath = "other_data/ibib_pan"
     subject_i = sys.argv[1] if len(sys.argv) > 1 else "s01.csv"
     filepath = os.path.join(dirpath, subject_i)
     print(f"subject: {subject_i}")
 
-    X = load_with_preprocessing(
-        filepath, n_ch=19, skip_interpolation=True, fs=250, max_t=-1
+    data = load_with_preprocessing(
+        filepath, n_ch=19, skip_interpolation=True, fs=250, max_t=1000 + tau
     )
-    X, Y = X[:, :-tau], X[:, tau:]
+    X = data[:, :-tau]
+    Y = data[:, tau:]
     # Split data into splices
     num_splices = X.shape[-1] // N
     X_splices = np.split(X[:, : num_splices * N], num_splices, axis=-1)
@@ -36,7 +37,7 @@ def main() -> None:
     loss_across_subjects = []
     for x_i, x_splice in enumerate(X_splices):
         y_splice = Y_splices[x_i]
-        A = train(x_splice, y_splice, num_epochs=1000, learning_rate=1e-4)
+        A = train(x_splice, y_splice, num_epochs=100, learning_rate=1e-4)
 
         # Predict next state
         yhat = A @ x_splice

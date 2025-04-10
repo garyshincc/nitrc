@@ -1,7 +1,7 @@
 import numpy as np
 import plotly.express as px
 
-from research.models.linear_dynamics import loss_fn, train
+from research.models.ltv import loss_fn, train
 from research.utils.data_utils import (
     collect_resting_state_files,
     load_with_preprocessing,

@@ -1,14 +1,15 @@
 import os
-import sys
 
 import numpy as np
-import plotly.express as px
-from plotly.subplots import make_subplots
-from scipy.signal import ShortTimeFFT
-from scipy.signal.windows import gaussian
+from scipy.stats import mannwhitneyu
 
-from research.config import BP_MAX, BP_MIN, FS
-from research.utils.data_utils import load_with_preprocessing
+from research.config import FS
+from research.utils.data_utils import get_subject_band_powers
+
+N = 500
+N_SECONDS = 15
+WINDOW_SIZE = 512  # either could go 256 or 512
+HOP_SIZE = FS // 4
 
 bands = [
     ("delta", (1, 4)),
@@ -18,54 +19,77 @@ bands = [
     ("gamma", (30, 100)),
 ]
 
+N_CH = 19
+
 
 def main() -> None:
     dirpath = "other_data/ibib_pan"
+    use_cache = True
+
     healthy_eeg_filenames = [f"h{str(i).zfill(2)}.csv" for i in range(1, 15)]
     schizo_eeg_filenames = [f"s{str(i).zfill(2)}.csv" for i in range(1, 15)]
-    WINDOW_SIZE = 512 * 2  # either could go 256 or 512
-    HOP_SIZE = FS // 4
-    total_window = 500 * 30
 
-    subject_i = sys.argv[1] if len(sys.argv) > 1 else "h01.csv"
-    filepath = os.path.join(dirpath, subject_i)
+    band_names = [b[0] for b in bands]
 
-    X = load_with_preprocessing(
-        filepath, max_t=total_window, n_ch=19, skip_interpolation=True
-    )
+    all_eeg_filenames = healthy_eeg_filenames + schizo_eeg_filenames
+    labels = ["healthy"] * 14 + ["schizophrenic"] * 14
 
-    win = gaussian(WINDOW_SIZE, std=WINDOW_SIZE / 6, sym=True)
+    all_band_powers = np.zeros((len(all_eeg_filenames), N_CH, 5))
+    subject_ids = []
+    for f_i, eeg_filename in enumerate(all_eeg_filenames):
+        eeg_filepath = os.path.join(dirpath, eeg_filename)
+        subject_ids.append(eeg_filename)
+        print(eeg_filename)
 
-    SFT = ShortTimeFFT(win=win, hop=HOP_SIZE, fs=FS, scale_to="magnitude")
-    Sx = SFT.stft(X)
-    Sx_magnitude = np.abs(Sx)
-    t_stft = SFT.t(total_window)
-    f_stft = SFT.f
+        subject_band_powers = get_subject_band_powers(
+            eeg_filepath,
+            subject_id=eeg_filename,
+            splice_seconds=10,
+            use_cache=use_cache,
+            n_ch=N_CH,
+            skip_interpolation=True,
+        )
+        subject_avg_band_power = np.mean(
+            subject_band_powers, axis=0
+        )  # (num_splices, n_ch, 5)
+        all_band_powers[f_i] = subject_avg_band_power
 
-    mask = (f_stft > BP_MIN) * (f_stft < BP_MAX)
+    healthy_mask = np.array(labels) == "healthy"
+    schizo_mask = np.array(labels) == "schizophrenic"
+    healthy_band_powers = all_band_powers[healthy_mask]  # Shape: (14, 5)
+    schizo_band_powers = all_band_powers[schizo_mask]  # Shape: (14, 5)
 
-    Sx_magnitude = Sx_magnitude[:, mask, :]
-    f_stft = f_stft[mask]
+    # 1. Statistical Comparisons (Mann-Whitney U Test)
+    print("Mann-Whitney U Test Results:")
+    for band_idx, band_name in enumerate(band_names):
+        print(f"{band_name}")
+        for ch in range(N_CH):
+            healthy_data = healthy_band_powers[:, ch, band_idx]
+            schizo_data = schizo_band_powers[:, ch, band_idx]
+            stat, p_value = mannwhitneyu(
+                healthy_data, schizo_data, alternative="two-sided"
+            )
+            print(f"Channel {ch+1}: U={stat:.2f}, p={p_value:.4f}")
 
-    band_power = np.zeros((X.shape[0], len(bands), len(t_stft)))
-    bands_name = []
-    for i, (band, (f_low, f_high)) in enumerate(bands):
+    # 2. Group Variability (Standard Deviation)
+    print("\nGroup Variability (Standard Deviation):")
+    healthy_std = np.std(
+        healthy_band_powers, axis=(0, 1)
+    )  # Std across subjects per band
+    schizo_std = np.std(schizo_band_powers, axis=(0, 1))
+    for band_idx, band_name in enumerate(band_names):
+        print(
+            f"{band_name}: Healthy STD={healthy_std[band_idx]:.4f}, Schizo STD={schizo_std[band_idx]:.4f}"
+        )
 
-        bands_name.append(band)
-        bin_low = int(f_low)
-        bin_high = int(f_high)
-        band_power[:, i] = np.sum(Sx_magnitude[:, bin_low : bin_high + 1, :], axis=1)
-
-    fig = make_subplots(
-        rows=1,
-        cols=1,
-        shared_yaxes=True,
-    )
-
-    # Pick a random channel to show.
-    fig.add_trace(px.imshow(band_power[1], y=bands_name).data[0], row=1, col=1)
-    fig.update_layout(title="Band power over time", showlegend=False)
-    fig.show()
+    # 3. Group Means (for reference)
+    print("\nGroup Means:")
+    healthy_mean = np.mean(healthy_band_powers, axis=(0, 1))
+    schizo_mean = np.mean(schizo_band_powers, axis=(0, 1))
+    for band_idx, band_name in enumerate(band_names):
+        print(
+            f"{band_name}: Healthy Mean={healthy_mean[band_idx]:.4f}, Schizo Mean={schizo_mean[band_idx]:.4f}"
+        )
 
 
 if __name__ == "__main__":
