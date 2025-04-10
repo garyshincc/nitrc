@@ -3,14 +3,9 @@ import os
 import numpy as np
 import plotly.graph_objects as go
 
-from research.config import FS
-from research.utils.data_utils import detect_outliers, get_subject_band_powers
+from research.entry_2.main import visualize_bands_heatmap, visualize_paracoords
+from research.utils.data_utils import get_subject_band_powers
 from research.utils.visualization_utils import cluster_and_visualize
-from research.entry_2.main import visualize_paracoords, visualize_bands_heatmap
-N = 500
-N_SECONDS = 15
-WINDOW_SIZE = 512  # either could go 256 or 512
-HOP_SIZE = FS // 4
 
 bands = [
     ("delta", (1, 4)),
@@ -50,7 +45,9 @@ def main() -> None:
         mean_power_per_band = np.mean(subject_band_powers, axis=1)
         data_sum = np.sum(mean_power_per_band, axis=-1)
         mean_power_per_band = mean_power_per_band / np.expand_dims(data_sum, axis=-1)
-        visualize_paracoords(mean_power_per_band=mean_power_per_band, subject_id=eeg_filename)
+        visualize_paracoords(
+            mean_power_per_band=mean_power_per_band, subject_id=eeg_filename
+        )
         visualize_bands_heatmap(subject_band_powers=subject_band_powers)
 
         total_power = subject_band_powers.sum(axis=2, keepdims=True)  # Sum over bands
@@ -93,6 +90,7 @@ def main() -> None:
         title=f"Average Power band across all subjects", yaxis_title="Power"
     )
     fig.show()
+
 
 if __name__ == "__main__":
     main()

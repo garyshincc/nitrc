@@ -22,8 +22,8 @@ bands = [
 ]
 band_names = [b[0] for b in bands]
 
-def visualize_paracoords(mean_power_per_band: np.ndarray, 
-                         subject_id: str) -> None:
+
+def visualize_paracoords(mean_power_per_band: np.ndarray, subject_id: str) -> None:
     fig = go.Figure(
         data=go.Parcoords(
             dimensions=[
@@ -40,6 +40,7 @@ def visualize_paracoords(mean_power_per_band: np.ndarray,
         yaxis_title="Power",
     )
     fig.show()
+
 
 def visualize_bands_heatmap(subject_band_powers: np.ndarray) -> None:
     total_power = subject_band_powers.sum(axis=2, keepdims=True)  # Sum over bands
@@ -104,6 +105,8 @@ def visualize_bands_heatmap(subject_band_powers: np.ndarray) -> None:
 
     # Show the plot
     fig.show()
+
+
 def main(args: argparse.Namespace) -> None:
 
     eeg_filepaths = collect_specified_files(args.task_name)[: args.num_subjects]
@@ -125,14 +128,15 @@ def main(args: argparse.Namespace) -> None:
         mean_power_per_band = np.mean(subject_band_powers, axis=1)
         data_sum = np.sum(mean_power_per_band, axis=-1)
         mean_power_per_band = mean_power_per_band / np.expand_dims(data_sum, axis=-1)
-        visualize_paracoords(mean_power_per_band=mean_power_per_band, subject_id=subject_id)
+        visualize_paracoords(
+            mean_power_per_band=mean_power_per_band, subject_id=subject_id
+        )
         visualize_bands_heatmap(subject_band_powers=subject_band_powers)
 
         total_power = subject_band_powers.sum(axis=2, keepdims=True)  # Sum over bands
         relative_band_powers = subject_band_powers / total_power
 
         all_subjects_band_powers[f_i] = np.mean(relative_band_powers, axis=(0, 1))
-
 
     inertia, silhouette = cluster_and_visualize(
         all_subjects_band_powers,
@@ -166,7 +170,8 @@ def main(args: argparse.Namespace) -> None:
         )
     )
     fig.update_layout(
-        title=f"Average Power band for {args.task_name} across all subjects", yaxis_title="Power"
+        title=f"Average Power band for {args.task_name} across all subjects",
+        yaxis_title="Power",
     )
     fig.show()
 
