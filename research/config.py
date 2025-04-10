@@ -3,7 +3,7 @@ FS = 500  # Sampling frequency in Hz
 
 N_EPOCHS = 100  # Number of training epochs
 LR = 1e-4  # Learning rate
-GRAD_CLIP = 10.0  # Gradient clipping threshold
+GRAD_CLIP = 1.0  # Gradient clipping threshold
 
 NOTCH_MIN = 55  # Notch filter lower bound (Hz)
 NOTCH_MAX = 65  # Notch filter upper bound (Hz)

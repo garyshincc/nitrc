@@ -190,7 +190,7 @@ def collect_resting_state_files() -> List[str]:
 
 
 EEG_TASK_MAP = {
-    # "Resting": "RestingState_data.csv",
+    "Resting": "RestingState_data.csv",
     "SAIIT2AFC": "SAIIT_2AFC_Block1_data.csv",
     "SurroundSuppression": "SurroundSupp_Block1_data.csv",
     "VideoDecisionMaking": "Video-DM_data.csv",
@@ -220,6 +220,21 @@ def collect_non_resting_state_files() -> Dict[str, List[str]]:
         nonrest_files[eeg_task].extend(file_paths)
 
     return nonrest_files
+
+
+def collect_specified_files(taskname: str) -> List[str]:
+
+    filename = EEG_TASK_MAP[taskname]
+    dir_path = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    )
+    search_pattern = os.path.join(
+        dir_path, "data", "*", "EEG", "raw", "csv_format", filename
+    )
+
+    file_paths = glob.glob(search_pattern)
+    print(f"Collected {len(file_paths)} files for {taskname}")
+    return file_paths
 
 
 def splice_and_reject(

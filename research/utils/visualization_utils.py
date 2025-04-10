@@ -25,12 +25,12 @@ def cluster_and_visualize(
     )  # Needs >1 sample per cluster
     pca = PCA(n_components=n_components)
     pca_data = pca.fit_transform(data)
-    status = []
-    for s in subject_ids:
-        if "h" in s:
-            status.append("HEALTHY")
-        else:
-            status.append("SCHIZO")
+    # status = []
+    # for s in subject_ids:
+    #     if "h" in s:
+    #         status.append("HEALTHY")
+    #     else:
+    #         status.append("SCHIZO")
     if n_components == 3:
         df = pd.DataFrame(
             {
@@ -39,7 +39,7 @@ def cluster_and_visualize(
                 "PC3": pca_data[:, 2],
                 "Cluster": clusters,
                 "Subject": subject_ids,
-                "Status": status,
+                # "Status": status,
             }
         )
         # Plotly 3D scatter
@@ -48,7 +48,7 @@ def cluster_and_visualize(
             x="PC1",
             y="PC2",
             z="PC3",
-            color="Status",
+            # color="Status",
             hover_data=["Subject"],
             title=f"K-Means Clustering of EEG Band Power for task {task_name}",
         )
@@ -59,7 +59,7 @@ def cluster_and_visualize(
                 "PC2": pca_data[:, 1],
                 "Cluster": clusters,
                 "Subject": subject_ids,
-                "Status": status,
+                # "Status": status,
             }
         )
         # Plotly 3D scatter
