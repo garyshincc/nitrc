@@ -36,7 +36,8 @@ def update(A: jnp.ndarray, x_t: jnp.ndarray, x_t_1: jnp.ndarray, lr: float = LR)
     A_new = A - lr * grad_A
 
     # Normalize A to maintain numerical stability
-    A_new = A_new / jnp.linalg.norm(A_new, ord="fro")
+    norm = jnp.linalg.norm(A_new, ord="fro")
+    A_new = jnp.where(norm > 1e-8, A_new / norm, A_new)
     return A_new
 
 
