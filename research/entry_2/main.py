@@ -42,7 +42,7 @@ def visualize_paracoords(mean_power_per_band: np.ndarray, subject_id: str) -> No
     fig.show()
 
 
-def visualize_bands_heatmap(subject_band_powers: np.ndarray) -> None:
+def visualize_bands_heatmap(subject_band_powers: np.ndarray, subject_id: str) -> None:
     total_power = subject_band_powers.sum(axis=2, keepdims=True)  # Sum over bands
     relative_band_powers = subject_band_powers / total_power
 
@@ -67,13 +67,13 @@ def visualize_bands_heatmap(subject_band_powers: np.ndarray) -> None:
     for i, (name, data) in enumerate(zip(band_names, band_data)):
         fig.add_trace(
             go.Heatmap(
-                z=data,  # (128, num_splices)
-                x=np.arange(data.shape[1]),  # Time splices
-                y=np.arange(128),  # Channels
+                z=data,
+                x=np.arange(data.shape[1]),
+                y=np.arange(128),
                 colorscale="Hot",
-                colorbar=dict(
-                    title=name, len=0.13, y=(0.95 - i * 0.15)
-                ),  # Stagger colorbars
+                colorbar=dict(title=name, len=0.13, y=(0.95 - i * 0.15)),
+                zmin=0,
+                zmax=1,
             ),
             row=i + 1,
             col=1,
@@ -86,18 +86,18 @@ def visualize_bands_heatmap(subject_band_powers: np.ndarray) -> None:
                 z=data,
                 x=np.arange(data.shape[1]),
                 y=np.arange(128),
-                colorscale="Viridis",  # Different scale for ratios
-                colorbar=dict(title=name, len=0.13, y=(0.25 - i * 0.15)),
+                colorscale="Viridis",
+                colorbar=dict(title=name, len=0.13, y=(1.1 - (i + 6) * 0.15)),
             ),
             row=i + 6,
-            col=1,  # Rows 6 and 7
+            col=1,
         )
 
     # Update layout
     fig.update_layout(
         height=1400,  # Tall to fit all 7 plots
         width=800,
-        title_text="EEG Power Bands and Ratios Across Channels and Time",
+        title_text=f"EEG Power Bands and Ratios for {subject_id}",
         showlegend=False,
     )
     fig.update_xaxes(title_text="Time (splices)")
@@ -131,7 +131,9 @@ def main(args: argparse.Namespace) -> None:
         visualize_paracoords(
             mean_power_per_band=mean_power_per_band, subject_id=subject_id
         )
-        visualize_bands_heatmap(subject_band_powers=subject_band_powers)
+        visualize_bands_heatmap(
+            subject_band_powers=subject_band_powers, subject_id=subject_id
+        )
 
         total_power = subject_band_powers.sum(axis=2, keepdims=True)  # Sum over bands
         relative_band_powers = subject_band_powers / total_power

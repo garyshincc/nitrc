@@ -1,3 +1,4 @@
+import argparse
 import os
 
 import numpy as np
@@ -18,12 +19,16 @@ bands = [
 load_cache = False
 
 
-def main() -> None:
-
+def main(args: argparse.Namespace) -> None:
+    N_ch = 19
     dirpath = "other_data/ibib_pan"
 
-    healthy_eeg_filenames = [f"h{str(i).zfill(2)}.csv" for i in range(1, 5)]
-    schizo_eeg_filenames = [f"s{str(i).zfill(2)}.csv" for i in range(1, 5)]
+    healthy_eeg_filenames = [
+        f"h{str(i).zfill(2)}.csv" for i in range(1, args.num_subjects)
+    ]
+    schizo_eeg_filenames = [
+        f"s{str(i).zfill(2)}.csv" for i in range(1, args.num_subjects)
+    ]
 
     all_eeg_filenames = healthy_eeg_filenames + schizo_eeg_filenames
 
@@ -37,8 +42,8 @@ def main() -> None:
             eeg_filepath,
             subject_id=eeg_filename,
             splice_seconds=10,
-            use_cache=False,
-            n_ch=19,
+            use_cache=args.use_cache,
+            n_ch=N_ch,
             skip_interpolation=True,
         )
         # (n_time_splices, n_channels, n_bands)
@@ -48,7 +53,9 @@ def main() -> None:
         visualize_paracoords(
             mean_power_per_band=mean_power_per_band, subject_id=eeg_filename
         )
-        visualize_bands_heatmap(subject_band_powers=subject_band_powers)
+        visualize_bands_heatmap(
+            subject_band_powers=subject_band_powers, subject_id=eeg_filename
+        )
 
         total_power = subject_band_powers.sum(axis=2, keepdims=True)  # Sum over bands
         relative_band_powers = subject_band_powers / total_power
@@ -66,8 +73,8 @@ def main() -> None:
     fig = go.Figure(
         data=go.Parcoords(
             line=dict(
-                color=np.arange(len(subject_ids)),  # Color by subject index
-                colorscale="Viridis",  # Pick any colorscale
+                color=np.arange(len(subject_ids)),
+                colorscale="Viridis",
             ),
             dimensions=[
                 dict(
@@ -93,4 +100,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--num-subjects", type=int, default=15)
+    parser.add_argument("--use-cache", action="store_true")
+
+    args = parser.parse_args()
+    main(args)

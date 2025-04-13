@@ -13,7 +13,11 @@ from research.utils.data_utils import (
 
 
 def train_ltv_model(
-    X: np.ndarray, Y: np.ndarray, segment_size_list: List[int]
+    X: np.ndarray,
+    Y: np.ndarray,
+    segment_size_list: List[int],
+    num_epochs: int = 500,
+    learning_rate: float = 5e-4,
 ) -> Dict[str, Any]:
     data_per_segment = {
         "mean_loss": [],
@@ -31,7 +35,9 @@ def train_ltv_model(
         pred_vals = []
         for x_i, x_splice in enumerate(X_splices):
             y_splice = Y_splices[x_i]
-            A = train(x_splice, y_splice, num_epochs=100, learning_rate=1e-4)
+            A = train(
+                x_splice, y_splice, num_epochs=num_epochs, learning_rate=learning_rate
+            )
             loss = loss_fn(A, x_splice, y_splice)
             loss_vals.append(loss)
             yhat = A @ x_splice

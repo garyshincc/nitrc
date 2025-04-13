@@ -1,5 +1,5 @@
 import argparse
-from typing import Any, Dict, List
+
 import numpy as np
 import plotly.express as px
 
@@ -20,9 +20,11 @@ def main(args: argparse.Namespace) -> None:
         loss_across_subjects = []
         for f_i, eeg_filepath in enumerate(eeg_filepaths):
             X = load_with_preprocessing(eeg_filepath, max_t=args.max_t)
-            X, Y = X[:, : -tau], X[:, tau:]
+            X, Y = X[:, :-tau], X[:, tau:]
 
-            data_per_segment = train_ltv_model(X=X, Y=Y, segment_size_list=[args.segment_length])
+            data_per_segment = train_ltv_model(
+                X=X, Y=Y, segment_size_list=[args.segment_length]
+            )
             mean_loss = np.mean(data_per_segment["mean_loss"])
             # loss_grid[f_i] = mean_loss
             loss_across_subjects.append(mean_loss)
@@ -40,8 +42,10 @@ if __name__ == "__main__":
         "--task-name", type=str, choices=EEG_TASK_MAP.keys(), default="Resting"
     )
     parser.add_argument("--segment-length", type=int, default=250)
-    parser.add_argument("--tau-list", nargs="+", type=int, default=[1, 5, 10, 50, 100, 250, 500])
-    parser.add_argument("--max-t", type=int, default=500 * 10)  # 10 seconds
+    parser.add_argument(
+        "--tau-list", nargs="+", type=int, default=[1, 5, 10, 50, 100, 250, 500]
+    )
+    parser.add_argument("--max-t", type=int, default=500 * 30)  # 30 seconds
     parser.add_argument("--num-subjects", type=int, default=3)
 
     args = parser.parse_args()
