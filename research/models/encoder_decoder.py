@@ -6,12 +6,6 @@ import jax.numpy as jnp
 
 key = jax.random.PRNGKey(42)
 
-
-# @jax.jit
-# def model(A: jnp.ndarray, x: jnp.ndarray) -> Any:
-#     return A @ x
-
-
 @jax.jit
 def model(params: Dict, x: jnp.ndarray) -> Any:
     """Apply autoencoder: encode to latent space, decode back.
