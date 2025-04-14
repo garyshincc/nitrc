@@ -41,7 +41,6 @@ def update(A: jnp.ndarray, x_t: jnp.ndarray, x_t_1: jnp.ndarray, lr: float = LR)
     return A_new
 
 
-# Gradient descent optimization
 def train(
     X: jnp.ndarray,
     Y: jnp.ndarray,
