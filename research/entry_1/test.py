@@ -1,4 +1,5 @@
 import argparse
+import os
 
 import numpy as np
 import plotly.graph_objects as go
@@ -15,9 +16,18 @@ from research.utils.data_utils import (
 def main(args: argparse.Namespace) -> None:
     print(args)
     N_CH = 128
-    eeg_filepath = collect_specified_files(args.task_name)[args.subject_i]
+    FS = 500
 
-    X = load_with_preprocessing(eeg_filepath, max_t=args.max_t, skip_znorm=False)
+    eeg_filepath = collect_specified_files(args.task_name)[args.subject_i]
+    subject_id = eeg_filepath.split(os.path.sep)[-5]
+
+    X = load_with_preprocessing(
+        eeg_filepath,
+        subject_id=subject_id,
+        max_t=args.max_t + args.tau,
+        skip_znorm=False,
+        fs=FS,
+    )
     X, Y = X[:, : -args.tau], X[:, args.tau :]
 
     data_per_segment = train_ltv_model(X, Y, segment_size_list=[args.segment_length])
@@ -51,8 +61,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("--segment-length", type=int, default=250)
     parser.add_argument("--tau", type=int, default=1)
-    parser.add_argument("--max-t", type=int, default=500 * 10)  # 10 seconds
-    parser.add_argument("--subject_i", type=int, default=0)
+    parser.add_argument("--max-t", type=int, default=500 * 10)
+    parser.add_argument("--subject_i", type=int, default=1)
 
     args = parser.parse_args()
     main(args)

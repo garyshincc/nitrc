@@ -1,4 +1,5 @@
 import argparse
+import os
 from typing import Any, Dict, List
 
 import numpy as np
@@ -24,6 +25,7 @@ def train_ltv_model(
         "A": [],
         "pred": [],
     }
+
     for segment_size in segment_size_list:
         num_splices = X.shape[-1] // segment_size
         if num_splices < 1:
@@ -56,7 +58,10 @@ def main(args: argparse.Namespace) -> None:
     loss_grid = np.zeros((len(eeg_filepaths), len(N_list)))
 
     for f_i, eeg_filepath in enumerate(eeg_filepaths):
-        X = load_with_preprocessing(eeg_filepath, max_t=args.max_t)
+        subject_id = eeg_filepath.split(os.path.sep)[-5]
+        X = load_with_preprocessing(
+            eeg_filepath, subject_id=subject_id, max_t=args.max_t + args.tau
+        )
 
         X, Y = X[:, : -args.tau], X[:, args.tau :]
         data_per_segment = train_ltv_model(X=X, Y=Y, segment_size_list=N_list)

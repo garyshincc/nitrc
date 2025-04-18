@@ -18,7 +18,7 @@ HOP_SIZE = FS // 4
 CACHE_DIR = "data_cache"
 SEGMENT_SECONDS = 10
 
-bands = [
+BANDS = [
     ("delta", (1, 4)),
     ("theta", (4, 8)),
     ("alpha", (8, 12)),
@@ -27,9 +27,8 @@ bands = [
 ]
 
 # Manual rejection
-SUBJECT_REJECTION_MAP = {
-    "NDARBH789CUP": [(0, -1)],
-    "NDARAD459XJK": [(3500, 5000), (14000, 22500), (30000, 50000)],
+SUBJECT_MAX_T = {
+    "NDARAD459XJK": 120000,
 }
 
 ### Data Pre-processing methods
@@ -154,6 +153,7 @@ def interpolate_faulty_channels(
 
 def load_with_preprocessing(
     filepath: str,
+    subject_id: str,
     *,
     n_ch: int = 128,
     max_t: int = -1,
@@ -162,6 +162,11 @@ def load_with_preprocessing(
     fs: int = FS,
 ) -> Any:
     X = np.loadtxt(filepath, delimiter=",")
+    if max_t == -1:
+        max_t = X.shape[-1]
+    if subject_id in SUBJECT_MAX_T:
+        subject_max_t = SUBJECT_MAX_T[subject_id]
+        max_t = min(max_t, subject_max_t)
     X = X[:n_ch, :max_t]
     X = fill_flat_channels(X, fillval=np.nan)
     X = fill_wack_channels(X, fillval=np.nan)
@@ -237,59 +242,17 @@ def collect_specified_files(taskname: str) -> List[str]:
     return file_paths
 
 
-def splice_and_reject(
-    X: np.ndarray, subject_id: str, fs: int = FS, segment_seconds: int = SEGMENT_SECONDS
-) -> Any:
-    """Expecting a (N_ch, T) array, splice to 10 second segments, then
-    if a segment is in the reject map, reject. return remaining data as
-    potentially non-contiguous data.
-    """
-    channels, total_samples = X.shape
-    segment_length = segment_seconds * fs
-    num_splices = total_samples // segment_length
-
-    # Step 1: Create a boolean mask for valid time points (True = keep)
-    valid_mask = np.ones(total_samples, dtype=bool)
-    for left, right in SUBJECT_REJECTION_MAP.get(subject_id, []):
-        valid_mask[left:right] = False
-
-    # Step 2: Reshape mask into segments
-    segment_masks = np.split(valid_mask[: num_splices * segment_length], num_splices)
-
-    # Step 3: Determine which segments are fully valid
-    keep_segment_indices = [
-        i for i, seg_mask in enumerate(segment_masks) if seg_mask.all()
-    ]
-
-    # Step 4: Split X into segments
-    X_segments = np.split(X[:, : num_splices * segment_length], num_splices, axis=-1)
-
-    # Step 5: Keep only the valid segments
-    filtered_segments = [X_segments[i] for i in keep_segment_indices]
-
-    return filtered_segments
-
-
 ### Data analysis methods
 
 
 def get_subject_band_powers(
-    subject_eeg_file: str,
-    subject_id: str = "",
-    total_window: int = -1,
-    splice_seconds: int = 10,
+    X: np.ndarray,
+    subject_id: str,
+    task_name: str = "Resting",
+    fs: int = FS,
     use_cache: bool = True,
-    n_ch: int = 128,
-    skip_interpolation: bool = False,
 ) -> Any:
 
-    if not subject_id:
-        subject_id = os.path.basename(
-            os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.dirname(subject_eeg_file)))
-            )
-        )
-    task_name = os.path.splitext(os.path.basename(subject_eeg_file))[0]
     cache_filename = os.path.join(
         CACHE_DIR, f"{subject_id}_{task_name}_band_powers.npy"
     )
@@ -299,35 +262,30 @@ def get_subject_band_powers(
             return np.load(cache_filename)
         except FileNotFoundError:
             pass
-    X = load_with_preprocessing(
-        subject_eeg_file, max_t=total_window, skip_interpolation=skip_interpolation
-    )
-    X_splices = splice_and_reject(X=X, subject_id=subject_id)
 
-    subject_band_powers = np.zeros((len(X_splices), n_ch, 5))
-    for x_i, x_splice in enumerate(X_splices):
+    window_size = fs * 2
+    hop_size = fs // 4
 
-        win = gaussian(WINDOW_SIZE, std=WINDOW_SIZE / 6, sym=True)
-        SFT = ShortTimeFFT(win=win, hop=HOP_SIZE, fs=FS, scale_to="magnitude")
+    win = gaussian(window_size, std=window_size / 6, sym=True)
+    SFT = ShortTimeFFT(win=win, hop=hop_size, fs=fs, scale_to="magnitude")
 
-        Sx = SFT.stft(x_splice)
-        Sx_magnitude = np.abs(Sx)
-        t_stft = SFT.t(x_splice.shape[-1])
+    Sx = SFT.stft(X)
+    Sx_magnitude = np.abs(Sx)
+    t_stft = SFT.t(X.shape[-1])
 
-        band_power = np.zeros(
-            (x_splice.shape[0], len(bands), len(t_stft))
-        )  # of shape (n_channels, 5, T)
+    band_power = np.zeros(
+        (X.shape[0], len(BANDS), len(t_stft))
+    )  # of shape (n_channels, 5, T)
 
-        for i, (band, (f_low, f_high)) in enumerate(bands):
-            bin_low = int(np.floor(f_low * WINDOW_SIZE / FS))
-            bin_high = int(np.ceil(f_high * WINDOW_SIZE / FS))
+    for i, (band, (f_low, f_high)) in enumerate(BANDS):
+        bin_low = int(np.floor(f_low * WINDOW_SIZE / fs))
+        bin_high = int(np.ceil(f_high * WINDOW_SIZE / fs))
 
-            band_power[:, i] = np.mean(
-                Sx_magnitude[:, bin_low : bin_high + 1, :] ** 2, axis=1
-            )
-        subject_band_powers[x_i] = np.mean(band_power, axis=-1)
-    np.save(cache_filename, subject_band_powers)
-    return subject_band_powers
+        band_power[:, i] = np.mean(
+            Sx_magnitude[:, bin_low : bin_high + 1, :] ** 2, axis=1
+        )
+    np.save(cache_filename, band_power)
+    return band_power
 
 
 def detect_outliers(
