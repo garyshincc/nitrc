@@ -14,9 +14,14 @@ def main(args: argparse.Namespace) -> None:
     N_CH = 19
 
     dirpath = "other_data/ibib_pan"
-    eeg_filepath = os.path.join(dirpath, f"{args.subject}.csv")
+    subject_id = f"{args.subject}.csv"
+    eeg_filepath = os.path.join(dirpath, subject_id)
     X = load_with_preprocessing(
-        eeg_filepath, max_t=args.max_t, skip_znorm=False, skip_interpolation=True
+        eeg_filepath,
+        subject_id=subject_id,
+        max_t=args.max_t,
+        skip_znorm=False,
+        skip_interpolation=True,
     )
     X, Y = X[:, : -args.tau], X[:, args.tau :]
 

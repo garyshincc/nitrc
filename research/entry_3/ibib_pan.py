@@ -48,7 +48,12 @@ def main(args: argparse.Namespace) -> None:
     for eeg_filename in healthy_eeg_filenames + schizo_eeg_filenames:
         eeg_filepath = os.path.join(dirpath, eeg_filename)
         X = load_with_preprocessing(
-            eeg_filepath, skip_interpolation=True, n_ch=N_ch, fs=Fs, max_t=args.max_t
+            eeg_filepath,
+            subject_id=eeg_filepath,
+            skip_interpolation=True,
+            n_ch=N_ch,
+            fs=Fs,
+            max_t=args.max_t,
         )
         loaded_data[eeg_filename] = X
     print("Pre-loaded all data into memory")

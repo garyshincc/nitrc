@@ -1,4 +1,5 @@
 import argparse
+import os
 
 import numpy as np
 import plotly.express as px
@@ -19,7 +20,10 @@ def main(args: argparse.Namespace) -> None:
     for t_i, tau in enumerate(args.tau_list):
         loss_across_subjects = []
         for f_i, eeg_filepath in enumerate(eeg_filepaths):
-            X = load_with_preprocessing(eeg_filepath, max_t=args.max_t)
+            subject_id = eeg_filepath.split(os.path.sep)[-5]
+            X = load_with_preprocessing(
+                eeg_filepath, subject_id=subject_id, max_t=args.max_t
+            )
             X, Y = X[:, :-tau], X[:, tau:]
 
             data_per_segment = train_ltv_model(

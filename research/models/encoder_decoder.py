@@ -35,8 +35,6 @@ def model(params: Dict, x: jnp.ndarray) -> Any:
         h, params["decoder_W"].T
     )  # (batch_dims, n_channels * segment_length)
     return x_recon.reshape(input_shape)
-    # y = jnp.einsum('ijk,kl->jl', h, params["decoder_W"])# + b2  # Decoder
-    return y
 
 
 @jax.jit
