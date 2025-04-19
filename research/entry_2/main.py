@@ -21,8 +21,10 @@ band_names = [b[0] for b in BANDS]
 
 def visualize_paracoords(subject_band_powers: np.ndarray, subject_id: str) -> None:
     # subject_band_powers shape: (num_channels, num_bands, T)
-    mean_power = np.mean(subject_band_powers, axis=0)
-    mean_power = mean_power / np.sum(mean_power, axis=0, keepdims=True)
+    mean_power = np.mean(subject_band_powers, axis=0)  # Average across all channels
+    mean_power = mean_power / np.sum(
+        mean_power, axis=0, keepdims=True
+    )  # Normalize across all bands
     fig = go.Figure(
         data=go.Parcoords(
             dimensions=[
@@ -110,7 +112,7 @@ def plot_subject_band_ratios(subject_band_powers: np.ndarray, subject_id: str) -
             go.Heatmap(
                 z=data,
                 x=np.arange(data.shape[-1]),
-                y=np.arange(128),
+                y=np.arange(subject_band_powers.shape[0]),
                 colorscale="Viridis",
                 coloraxis="coloraxis",
             ),

@@ -4,11 +4,20 @@ import os
 import numpy as np
 import plotly.graph_objects as go
 
-from research.entry_2.main import plot_subject_band_powers, plot_subject_band_ratios, visualize_paracoords
-from research.utils.data_utils import get_subject_band_powers, load_with_preprocessing, BANDS
+from research.entry_2.main import (
+    plot_subject_band_powers,
+    plot_subject_band_ratios,
+    visualize_paracoords,
+)
+from research.utils.data_utils import (
+    BANDS,
+    get_subject_band_powers,
+    load_with_preprocessing,
+)
 from research.utils.visualization_utils import cluster_and_visualize
 
 band_names = [b[0] for b in BANDS]
+
 
 def main(args: argparse.Namespace) -> None:
     N_CH = 19
@@ -41,10 +50,7 @@ def main(args: argparse.Namespace) -> None:
         )
 
         subject_band_powers = get_subject_band_powers(
-            X,
-            subject_id=subject_id,
-            use_cache=args.use_cache,
-            fs=FS
+            X, subject_id=subject_id, use_cache=args.use_cache, fs=FS
         )
 
         plot_subject_band_powers(

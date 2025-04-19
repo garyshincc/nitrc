@@ -258,10 +258,8 @@ def get_subject_band_powers(
     )
 
     if use_cache:
-        try:
+        if os.path.exists(cache_filename):
             return np.load(cache_filename)
-        except FileNotFoundError:
-            pass
 
     window_size = fs * 2
     hop_size = fs // 4
