@@ -5,11 +5,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from research.utils.data_utils import get_subject_band_powers
+from research.utils.data_utils import get_subject_band_powers, load_with_preprocessing
 
 
 def main(args: argparse.Namespace) -> None:
-    N_ch = 19
+    FS = 250
+    N_CH = 19
     dirpath = "other_data/ibib_pan"
 
     # Define filenames and labels
@@ -54,19 +55,25 @@ def main(args: argparse.Namespace) -> None:
 
     # Compute asymmetry
     schizo_asymm = np.zeros((args.num_subjects, len(bands), len(pairs)))
-    for f_i, filename in enumerate(schizo_eeg_filenames):
+    for f_i, subject_id in enumerate(schizo_eeg_filenames):
         # Get band powers (shape: (n_splices, N_ch, 5))
-        band_powers = get_subject_band_powers(
-            subject_eeg_file=os.path.join(dirpath, filename),
-            subject_id=filename,
-            total_window=args.max_t,
-            splice_seconds=10,
-            use_cache=True,
-            n_ch=N_ch,
+        filepath = os.path.join(dirpath, subject_id)
+        X = load_with_preprocessing(
+            filepath,
+            subject_id=subject_id,
+            max_t=args.max_t,
+            fs=FS,
+            n_ch=N_CH,
             skip_interpolation=True,
         )
+        band_powers = get_subject_band_powers(
+            X=X,
+            subject_id=subject_id,
+            fs=FS,
+            use_cache=args.use_cache,
+        )
         # Average over splices
-        mean_bp = np.mean(band_powers, axis=0)  # Shape: (N_ch, 5)
+        mean_bp = np.mean(band_powers, axis=-1)  # Shape: (N_ch, 5)
         for b_i in range(len(bands)):
             for p_i, (l, r) in enumerate(pairs):
                 left_power = mean_bp[l, b_i]
@@ -76,19 +83,24 @@ def main(args: argparse.Namespace) -> None:
                 schizo_asymm[f_i][b_i][p_i] = asymm
 
     healthy_asymm = np.zeros((args.num_subjects, len(bands), len(pairs)))
-    for f_i, filename in enumerate(healthy_eeg_filenames):
-        # Get band powers (shape: (n_splices, N_ch, 5))
-        band_powers = get_subject_band_powers(
-            subject_eeg_file=os.path.join(dirpath, filename),
-            subject_id=filename,
-            total_window=args.max_t,
-            splice_seconds=10,
-            use_cache=True,
-            n_ch=N_ch,
+    for f_i, subject_id in enumerate(healthy_eeg_filenames):
+        filepath = os.path.join(dirpath, subject_id)
+        X = load_with_preprocessing(
+            filepath,
+            subject_id=subject_id,
+            max_t=args.max_t,
+            fs=FS,
+            n_ch=N_CH,
             skip_interpolation=True,
         )
-        # Average over splices
-        mean_bp = np.mean(band_powers, axis=0)  # Shape: (N_ch, 5)
+        band_powers = get_subject_band_powers(
+            X=X,
+            subject_id=subject_id,
+            fs=FS,
+            use_cache=args.use_cache,
+        ) # shape: (n_channels, 5, T)
+
+        mean_bp = np.mean(band_powers, axis=-1)  # Shape: (N_ch, 5)
         for b_i in range(len(bands)):
             for p_i, (l, r) in enumerate(pairs):
                 left_power = mean_bp[l, b_i]
@@ -122,7 +134,7 @@ def main(args: argparse.Namespace) -> None:
             labels.append(f"{channel_names[l]}-{channel_names[r]}_H")
             labels.append(f"{channel_names[l]}-{channel_names[r]}_S")
 
-        plt.boxplot(data, labels=labels)
+        plt.boxplot(data, tick_labels=labels)
         plt.title(f"{band} asymmetry: healthy vs. schizo")
         plt.xticks(rotation=45)
         plt.ylabel("Asymmetry Ratio")
@@ -133,6 +145,7 @@ def main(args: argparse.Namespace) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Asymmetry analysis for IBIB Pan")
     parser.add_argument("--num-subjects", type=int, default=14)
+    parser.add_argument("--use-cache", action="store_true")
     parser.add_argument("--max-t", type=int, default=250 * 100)
     args = parser.parse_args()
     main(args)
