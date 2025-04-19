@@ -25,15 +25,15 @@ def main(args: argparse.Namespace) -> None:
     dirpath = "other_data/ibib_pan"
 
     healthy_eeg_filenames = [
-        f"h{str(i).zfill(2)}.csv" for i in range(1, args.num_subjects)
+        f"h{str(i).zfill(2)}.csv" for i in range(1, args.num_subjects + 1)
     ]
     schizo_eeg_filenames = [
-        f"s{str(i).zfill(2)}.csv" for i in range(1, args.num_subjects)
+        f"s{str(i).zfill(2)}.csv" for i in range(1, args.num_subjects + 1)
     ]
 
     all_eeg_filenames = healthy_eeg_filenames + schizo_eeg_filenames
 
-    all_subjects_band_powers = np.zeros((len(all_eeg_filenames), 5))
+    all_subjects_band_powers = np.zeros((len(all_eeg_filenames), N_CH, 5))
     subject_ids = []
     for f_i, subject_id in enumerate(all_eeg_filenames):
         eeg_filepath = os.path.join(dirpath, subject_id)
@@ -51,35 +51,41 @@ def main(args: argparse.Namespace) -> None:
 
         subject_band_powers = get_subject_band_powers(
             X, subject_id=subject_id, use_cache=args.use_cache, fs=FS
-        )
+        ) # shape: (n_channels, 5, T)
 
-        plot_subject_band_powers(
-            subject_band_powers=subject_band_powers,
-            band_names=band_names,
-            subject_id=subject_id,
-        )
+        # plot_subject_band_powers(
+        #     subject_band_powers=subject_band_powers,
+        #     band_names=band_names,
+        #     subject_id=subject_id,
+        # )
 
-        plot_subject_band_ratios(
-            subject_band_powers=subject_band_powers,
-            subject_id=subject_id,
-        )
+        # plot_subject_band_ratios(
+        #     subject_band_powers=subject_band_powers,
+        #     subject_id=subject_id,
+        # )
 
-        visualize_paracoords(
-            subject_band_powers=subject_band_powers, subject_id=subject_id
-        )
+        # visualize_paracoords(
+        #     subject_band_powers=subject_band_powers, subject_id=subject_id
+        # )
 
-        mean_power_per_band = np.mean(subject_band_powers, axis=-1)
-        data_sum = np.sum(mean_power_per_band, axis=1, keepdims=True)
-        mean_power_per_band = mean_power_per_band / data_sum
-        all_subjects_band_powers[f_i] = np.mean(mean_power_per_band, axis=0)
+        subject_mean_powers = np.mean(subject_band_powers, axis=-1)
+        all_subjects_band_powers[f_i] = subject_mean_powers
 
+    status = []
+    for s in subject_ids:
+        if "h" in s:
+            status.append("HEALTHY")
+        else:
+            status.append("SCHIZO")
     inertia, silhouette = cluster_and_visualize(
-        all_subjects_band_powers,
+        all_subjects_band_powers.reshape(all_subjects_band_powers.shape[0], -1),
         subject_ids=subject_ids,
         task_name="rest",
         n_clusters=2,
         n_components=2,
+        status=status,
     )
+    all_subjects_band_powers = np.mean(all_subjects_band_powers, axis=1)
     fig = go.Figure(
         data=go.Parcoords(
             line=dict(
@@ -96,7 +102,9 @@ def main(args: argparse.Namespace) -> None:
                 dict(
                     label="Alpha", values=all_subjects_band_powers[:, 2], range=(0, 1)
                 ),
-                dict(label="Beta", values=all_subjects_band_powers[:, 3], range=(0, 1)),
+                dict(
+                    label="Beta", values=all_subjects_band_powers[:, 3], range=(0, 1)
+                ),
                 dict(
                     label="Gamma", values=all_subjects_band_powers[:, 4], range=(0, 1)
                 ),
@@ -111,9 +119,9 @@ def main(args: argparse.Namespace) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--num-subjects", type=int, default=15)
+    parser.add_argument("--num-subjects", type=int, default=14)
     parser.add_argument("--use-cache", action="store_true")
-    parser.add_argument("--max-t", type=int, default=10000)
+    parser.add_argument("--max-t", type=int, default=-1)
 
     args = parser.parse_args()
     main(args)

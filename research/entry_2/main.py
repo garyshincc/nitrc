@@ -85,9 +85,6 @@ def plot_subject_band_powers(
 def plot_subject_band_ratios(subject_band_powers: np.ndarray, subject_id: str) -> None:
     # subject_band_powers shape: (num_channels, num_bands, T)
 
-    total_power = subject_band_powers.sum(axis=1, keepdims=True)
-    relative_band_powers = subject_band_powers / total_power
-
     ratio_names = ["theta/alpha ratio", "slow/fast ratio"]
 
     fig = make_subplots(
@@ -96,12 +93,12 @@ def plot_subject_band_ratios(subject_band_powers: np.ndarray, subject_id: str) -
         subplot_titles=ratio_names,
         vertical_spacing=0.05,
     )
-    theta_alpha = relative_band_powers[:, 1, :] / relative_band_powers[:, 2, :]
+    theta_alpha = subject_band_powers[:, 1, :] / subject_band_powers[:, 2, :]
     theta_alpha = np.clip(theta_alpha, a_min=0, a_max=10)
-    slow_fast = (relative_band_powers[:, 0, :] + relative_band_powers[:, 1, :]) / (
-        relative_band_powers[:, 2, :]
-        + relative_band_powers[:, 3, :]
-        + relative_band_powers[:, 4, :]
+    slow_fast = (subject_band_powers[:, 0, :] + subject_band_powers[:, 1, :]) / (
+        subject_band_powers[:, 2, :]
+        + subject_band_powers[:, 3, :]
+        + subject_band_powers[:, 4, :]
     )
     slow_fast = np.clip(slow_fast, a_min=0, a_max=50)
 
