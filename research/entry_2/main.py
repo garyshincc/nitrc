@@ -21,17 +21,16 @@ band_names = [b[0] for b in BANDS]
 
 def visualize_paracoords(subject_band_powers: np.ndarray, subject_id: str) -> None:
     # subject_band_powers shape: (num_channels, num_bands, T)
-    mean_power_per_band = np.mean(subject_band_powers, axis=-1)
-    data_sum = np.sum(mean_power_per_band, axis=1, keepdims=True)
-    mean_power_per_band = mean_power_per_band / data_sum
+    mean_power = np.mean(subject_band_powers, axis=0)
+    mean_power = mean_power / np.sum(mean_power, axis=0, keepdims=True)
     fig = go.Figure(
         data=go.Parcoords(
             dimensions=[
-                dict(label="Delta", values=mean_power_per_band[:, 0], range=(0, 1)),
-                dict(label="Theta", values=mean_power_per_band[:, 1], range=(0, 1)),
-                dict(label="Alpha", values=mean_power_per_band[:, 2], range=(0, 1)),
-                dict(label="Beta", values=mean_power_per_band[:, 3], range=(0, 1)),
-                dict(label="Gamma", values=mean_power_per_band[:, 4], range=(0, 1)),
+                dict(label="Delta", values=mean_power[0], range=(0, 1)),
+                dict(label="Theta", values=mean_power[1], range=(0, 1)),
+                dict(label="Alpha", values=mean_power[2], range=(0, 1)),
+                dict(label="Beta", values=mean_power[3], range=(0, 1)),
+                dict(label="Gamma", values=mean_power[4], range=(0, 1)),
             ],
         )
     )

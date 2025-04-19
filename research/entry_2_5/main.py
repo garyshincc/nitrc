@@ -4,23 +4,15 @@ import os
 import numpy as np
 import plotly.graph_objects as go
 
-from research.entry_2.main import visualize_bands_heatmap, visualize_paracoords
-from research.utils.data_utils import get_subject_band_powers
+from research.entry_2.main import plot_subject_band_powers, plot_subject_band_ratios, visualize_paracoords
+from research.utils.data_utils import get_subject_band_powers, load_with_preprocessing, BANDS
 from research.utils.visualization_utils import cluster_and_visualize
 
-bands = [
-    ("delta", (1, 4)),
-    ("theta", (4, 8)),
-    ("alpha", (8, 12)),
-    ("beta", (12, 30)),
-    ("gamma", (30, 100)),
-]
-
-load_cache = False
-
+band_names = [b[0] for b in BANDS]
 
 def main(args: argparse.Namespace) -> None:
-    N_ch = 19
+    N_CH = 19
+    FS = 250
     dirpath = "other_data/ibib_pan"
 
     healthy_eeg_filenames = [
@@ -34,42 +26,54 @@ def main(args: argparse.Namespace) -> None:
 
     all_subjects_band_powers = np.zeros((len(all_eeg_filenames), 5))
     subject_ids = []
-    for f_i, eeg_filename in enumerate(all_eeg_filenames):
-        eeg_filepath = os.path.join(dirpath, eeg_filename)
-        subject_ids.append(eeg_filename)
+    for f_i, subject_id in enumerate(all_eeg_filenames):
+        eeg_filepath = os.path.join(dirpath, subject_id)
+        subject_ids.append(subject_id)
+        print(f"subject: {subject_id}")
 
-        subject_band_powers = get_subject_band_powers(
+        X = load_with_preprocessing(
             eeg_filepath,
-            subject_id=eeg_filename,
-            splice_seconds=10,
-            use_cache=args.use_cache,
-            n_ch=N_ch,
+            subject_id=subject_id,
+            max_t=args.max_t,
+            fs=FS,
+            n_ch=N_CH,
             skip_interpolation=True,
         )
-        # (n_time_splices, n_channels, n_bands)
-        mean_power_per_band = np.mean(subject_band_powers, axis=1)
-        data_sum = np.sum(mean_power_per_band, axis=-1)
-        mean_power_per_band = mean_power_per_band / np.expand_dims(data_sum, axis=-1)
+
+        subject_band_powers = get_subject_band_powers(
+            X,
+            subject_id=subject_id,
+            use_cache=args.use_cache,
+            fs=FS
+        )
+
+        plot_subject_band_powers(
+            subject_band_powers=subject_band_powers,
+            band_names=band_names,
+            subject_id=subject_id,
+        )
+
+        plot_subject_band_ratios(
+            subject_band_powers=subject_band_powers,
+            subject_id=subject_id,
+        )
+
         visualize_paracoords(
-            mean_power_per_band=mean_power_per_band, subject_id=eeg_filename
-        )
-        visualize_bands_heatmap(
-            subject_band_powers=subject_band_powers, subject_id=eeg_filename
+            subject_band_powers=subject_band_powers, subject_id=subject_id
         )
 
-        total_power = subject_band_powers.sum(axis=2, keepdims=True)  # Sum over bands
-        relative_band_powers = subject_band_powers / total_power
-
-        all_subjects_band_powers[f_i] = np.mean(relative_band_powers, axis=(0, 1))
+        mean_power_per_band = np.mean(subject_band_powers, axis=-1)
+        data_sum = np.sum(mean_power_per_band, axis=1, keepdims=True)
+        mean_power_per_band = mean_power_per_band / data_sum
+        all_subjects_band_powers[f_i] = np.mean(mean_power_per_band, axis=0)
 
     inertia, silhouette = cluster_and_visualize(
         all_subjects_band_powers,
         subject_ids=subject_ids,
         task_name="rest",
-        n_clusters=3,
+        n_clusters=2,
         n_components=2,
     )
-
     fig = go.Figure(
         data=go.Parcoords(
             line=dict(
@@ -103,6 +107,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--num-subjects", type=int, default=15)
     parser.add_argument("--use-cache", action="store_true")
+    parser.add_argument("--max-t", type=int, default=10000)
 
     args = parser.parse_args()
     main(args)
