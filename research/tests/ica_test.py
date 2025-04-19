@@ -1,3 +1,4 @@
+import os
 import sys
 
 import matplotlib.pyplot as plt
@@ -5,7 +6,6 @@ import mne
 import numpy as np
 import scipy
 
-from research.config import FS
 from research.utils.data_utils import (
     collect_resting_state_files,
     load_with_preprocessing,
@@ -13,12 +13,14 @@ from research.utils.data_utils import (
 
 
 def main() -> None:
+    FS = 500
     max_T = FS * 120  # seconds
     n_components = 25
     eeg_filepaths = collect_resting_state_files()
     subject_i = int(sys.argv[1]) if len(sys.argv) > 1 else 1
     eeg_filepath = eeg_filepaths[subject_i]
-    X = load_with_preprocessing(eeg_filepath, max_t=max_T)
+    subject_id = eeg_filepath.split(os.path.sep)[-5]
+    X = load_with_preprocessing(eeg_filepath, subject_id=subject_id, max_t=max_T, fs=FS)
 
     montage = mne.channels.read_custom_montage("GSN_HydroCel_129.sfp")
     montage_ch_names = [

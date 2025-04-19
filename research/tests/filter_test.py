@@ -5,15 +5,15 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from research.config import BP_MAX, BP_MIN, FS, NOTCH_MAX, NOTCH_MIN
+from research.config import BP_MAX, BP_MIN, NOTCH_MAX, NOTCH_MIN
 from research.utils.data_utils import (
+    SUBJECT_MAX_T,
     butter_bandpass_filter,
     butter_bandstop_filter,
     collect_resting_state_files,
     fill_flat_channels,
     fill_wack_channels,
     interpolate_faulty_channels,
-    SUBJECT_MAX_T,
 )
 
 
@@ -26,7 +26,6 @@ def main() -> None:
     rest_eeg_filepath = rest_eeg_filepaths[subject_i]
     subject_id = rest_eeg_filepath.split(os.path.sep)[-5]
     print(subject_id)
-
 
     X = np.loadtxt(rest_eeg_filepath, delimiter=",")  # of shape [128, signal length]
     max_t = X.shape[-1]
@@ -49,7 +48,6 @@ def main() -> None:
     X = butter_bandpass_filter(X, lowcut=BP_MIN, highcut=BP_MAX, fs=FS)
     X = butter_bandstop_filter(X, lowcut=NOTCH_MIN, highcut=NOTCH_MAX, fs=FS)
 
-    
     for ch_i in range(N_CH):
         scat = go.Scatter(x=T, y=X[ch_i], mode="lines", name=f"BP BS ch {ch_i}")
         fig.add_trace(scat, row=(2 * ch_i) + 2, col=1)

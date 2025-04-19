@@ -4,11 +4,6 @@ import os
 import numpy as np
 import plotly.graph_objects as go
 
-from research.entry_2.main import (
-    plot_subject_band_powers,
-    plot_subject_band_ratios,
-    visualize_paracoords,
-)
 from research.utils.data_utils import (
     BANDS,
     get_subject_band_powers,
@@ -51,7 +46,7 @@ def main(args: argparse.Namespace) -> None:
 
         subject_band_powers = get_subject_band_powers(
             X, subject_id=subject_id, use_cache=args.use_cache, fs=FS
-        ) # shape: (n_channels, 5, T)
+        )  # shape: (n_channels, 5, T)
 
         # plot_subject_band_powers(
         #     subject_band_powers=subject_band_powers,
@@ -102,9 +97,7 @@ def main(args: argparse.Namespace) -> None:
                 dict(
                     label="Alpha", values=all_subjects_band_powers[:, 2], range=(0, 1)
                 ),
-                dict(
-                    label="Beta", values=all_subjects_band_powers[:, 3], range=(0, 1)
-                ),
+                dict(label="Beta", values=all_subjects_band_powers[:, 3], range=(0, 1)),
                 dict(
                     label="Gamma", values=all_subjects_band_powers[:, 4], range=(0, 1)
                 ),

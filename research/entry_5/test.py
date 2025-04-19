@@ -1,103 +1,94 @@
 import argparse
 import os
-from typing import Any, List
+from typing import List
 
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from research.models.encoder_decoder import init_params, model, update
-from research.utils.data_utils import load_with_preprocessing
+from research.utils.data_utils import (
+    BANDS,
+    get_subject_band_powers,
+    load_with_preprocessing,
+)
 
 
-def segment_eeg(X: np.ndarray, segment_size: int) -> Any:
-    """Segment EEG into fixed-length windows.
-
-    Args:
-        X: EEG data, shape (n_channels, n_samples)
-        fs: Sampling frequency (Hz)
-        segment_sec: Segment length (seconds)
-
-    Returns:
-        segments: Array of shape (n_segments, n_channels, segment_length)
-    """
-    n_samples = X.shape[-1]
-    n_segments = n_samples // segment_size
-    segments = X[:, : n_segments * segment_size].reshape(
-        X.shape[0], n_segments, segment_size
+def plot_subject_band_powers(
+    subject_band_powers: np.ndarray, band_names: List[str], subject_id: str
+) -> None:
+    fig = make_subplots(
+        rows=5,
+        cols=1,
+        subplot_titles=band_names,
+        vertical_spacing=0.05,
+        shared_xaxes=True,
     )
-    return segments.transpose(1, 0, 2)
+    for b_i in range(len(band_names)):
+        fig.add_trace(
+            go.Heatmap(
+                z=subject_band_powers[:, b_i, :],
+                x=np.arange(subject_band_powers.shape[2]),
+                y=np.arange(subject_band_powers.shape[0]),
+                colorscale="Hot",
+                coloraxis="coloraxis",
+            ),
+            row=b_i + 1,
+            col=1,
+        )
 
+    # Update layout
+    fig.update_layout(
+        height=300 * len(BANDS),
+        width=800,
+        title_text=f"EEG Power Bands and Ratios for {subject_id}",
+        showlegend=False,
+        margin=dict(l=50, r=50, t=100, b=50),
+    )
+    fig.update_xaxes(title_text="Time (splices)")
+    fig.update_yaxes(title_text="Channels")
 
-def train_enc_dec_model(
-    X_splices: np.ndarray,
-    input_dim: int,
-    latent_dim: int,
-    num_epochs: int = 1000,
-    batch_size: int = 8,
-    learning_rate: float = 1e-2,
-) -> List[Any]:
-    params = init_params(input_dim=input_dim, latent_dim=latent_dim)
-
-    for epoch in range(num_epochs):
-        perm = np.random.permutation(X_splices.shape[0])
-        total_loss = 0
-        for i in range(0, X_splices.shape[0], batch_size):
-            batch = X_splices[perm[i : i + batch_size]]
-            params, loss = update(params, batch, lr=learning_rate)
-            total_loss += loss
-        print(f"Epoch {epoch+1}, Loss: {total_loss}")
-
-    pred_vals = []
-    for x_i, x_splice in enumerate(X_splices):
-        yhat = model(params, x_splice)
-        pred_vals.append(yhat)
-    pred_vals = np.concat(pred_vals, axis=-1)
-    return pred_vals
+    # Show the plot
+    fig.show()
 
 
 def main(args: argparse.Namespace) -> None:
     print(args)
-    FS = 250
     N_CH = 19
+    FS = 250
 
     dirpath = "other_data/ibib_pan"
-    eeg_filepath = os.path.join(dirpath, f"{args.subject}.csv")
+    subject_id = f"{args.subject}.csv"
+    eeg_filepath = os.path.join(dirpath, subject_id)
+
     X = load_with_preprocessing(
-        eeg_filepath, max_t=args.max_t, skip_znorm=False, skip_interpolation=True
+        eeg_filepath,
+        subject_id=subject_id,
+        max_t=args.max_t,
+        skip_interpolation=True,
+        fs=FS,
+        n_ch=N_CH,
     )
-    X_splices = segment_eeg(X, segment_size=args.segment_size)
-    print(f"X_splices: {X_splices.shape}")
-    yhats = train_enc_dec_model(
-        X_splices,
-        input_dim=args.segment_size * N_CH,
-        latent_dim=args.latent_dim,
-        num_epochs=500,
-        batch_size=args.max_t // args.segment_size,
-        learning_rate=1e-3,
+
+    subject_band_powers = get_subject_band_powers(
+        X=X,
+        subject_id=subject_id,
+        fs=FS,
+        use_cache=args.use_cache,
     )
-    T = np.linspace(0, X.shape[-1], X.shape[-1])
 
-    # Create a single figure with subplots for each channel
-    fig = make_subplots(rows=N_CH, cols=1, shared_xaxes=True)
-
-    # Plot actual and predicted signals for each channel
-    for ch_i in range(N_CH):
-        scat_actual = go.Scatter(x=T, y=X[ch_i], mode="lines", name=f"Actual Ch{ch_i}")
-        fig.add_trace(scat_actual, row=ch_i + 1, col=1)
-        scat_pred = go.Scatter(x=T, y=yhats[ch_i], mode="lines", name=f"Pred Ch{ch_i}")
-        fig.add_trace(scat_pred, row=ch_i + 1, col=1)
-
-    # Update layout and display
-    fig.update_layout(height=300 * N_CH, title_text="Time Series Subplots")
-    fig.show()
+    print(subject_band_powers.shape)
+    band_names = [b[0] for b in BANDS]
+    plot_subject_band_powers(
+        subject_band_powers=subject_band_powers,
+        band_names=band_names,
+        subject_id=subject_id,
+    )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Autoencoder for IBIB Pan")
-    parser.add_argument("--max-t", type=int, default=500 * 30)
-    parser.add_argument("--segment-size", type=int, default=10 * 250)
-    parser.add_argument("--latent-dim", type=int, default=50)
+    parser.add_argument("--max-t", type=int, default=-1)
     parser.add_argument("--subject", type=str, default="s01")
+    parser.add_argument("--use-cache", action="store_true")
     args = parser.parse_args()
     main(args)

@@ -6,6 +6,13 @@ import jax.numpy as jnp
 
 key = jax.random.PRNGKey(42)
 
+# def autoencoder(params, x):
+#     w1, b1, w2, b2 = params
+#     h = jnp.tanh(jnp.einsum('ij,j->ij', x, w1) + b1)  # Encoder
+#     y = jnp.einsum('ij,j->ij', h, w2) + b2  # Decoder
+#     return y
+
+
 @jax.jit
 def model(params: Dict, x: jnp.ndarray) -> Any:
     """Apply autoencoder: encode to latent space, decode back.
@@ -21,11 +28,15 @@ def model(params: Dict, x: jnp.ndarray) -> Any:
     x_flat = x.reshape(
         -1, input_shape[-2] * input_shape[-1]
     )  # (batch_dims, n_channels * segment_length)
-    z = jnp.dot(x_flat, params["encoder_W"].T)  # (batch_dims, latent_dim)
+    h = jnp.dot(x_flat, params["encoder_W"].T)  # (batch_dims, latent_dim)
+    h = jnp.tanh(h)
+    # h = jnp.tanh(jnp.einsum('ijk,kl->jl', x, params["encoder_W"]) )  # Encoder
     x_recon = jnp.dot(
-        z, params["decoder_W"].T
+        h, params["decoder_W"].T
     )  # (batch_dims, n_channels * segment_length)
     return x_recon.reshape(input_shape)
+    # y = jnp.einsum('ijk,kl->jl', h, params["decoder_W"])# + b2  # Decoder
+    return y
 
 
 @jax.jit
@@ -51,5 +62,6 @@ def update(params: Dict, x: jnp.ndarray, lr: float = 1e-3) -> Any:
 
 def init_params(input_dim: int, latent_dim: int) -> Dict:
     encoder_W = 0.0 + 0.01 * jax.random.normal(key, (latent_dim, input_dim))
+
     decoder_W = 0.0 + 0.01 * jax.random.normal(key, (input_dim, latent_dim))
     return {"encoder_W": encoder_W, "decoder_W": decoder_W}

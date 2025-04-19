@@ -16,7 +16,7 @@ from research.utils.data_utils import (
 def main() -> None:
     FS = 500
     N_CH = 128
-    
+
     rest_eeg_filepaths = collect_resting_state_files()
     subject_i = int(sys.argv[1]) if len(sys.argv) > 1 else 1
     eeg_filepath = rest_eeg_filepaths[subject_i]

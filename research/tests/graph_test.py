@@ -37,8 +37,9 @@ def main() -> None:
     rest_eeg_filepaths = collect_resting_state_files()
     subject_i = int(sys.argv[1]) if len(sys.argv) > 1 else 1
     rest_eeg_filepath = rest_eeg_filepaths[subject_i]
+    subject_id = rest_eeg_filepath.split(os.path.sep)[-5]
 
-    X = load_with_preprocessing(rest_eeg_filepath, max_t=10000)
+    X = load_with_preprocessing(rest_eeg_filepath, subject_id=subject_id, max_t=-1)
 
     adj_matrix = compute_connectivity_matrix(X)
 
