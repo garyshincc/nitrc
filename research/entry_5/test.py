@@ -17,31 +17,40 @@ from research.utils.data_utils import (
 def train_ltv_model(
     X: np.ndarray,
     Y: np.ndarray,
+    segment_size: int,
     num_epochs: int = 500,
-    learning_rate: float = 1e-3,
+    learning_rate: float = 1e-2,
 ) -> Dict[str, Any]:
-    data_per_segment = {
-        "loss": [],
+    outcome = {
         "A": [],
-        "pred": [],
+        "loss": [],
+        "yhat": [],
     }
 
-    for i in range(X.shape[-1]):
-        x_splice = X[:, i]
-        y_splice = Y[:, i]
+    num_splices = X.shape[-1] // segment_size
+    if num_splices < 1:
+        return {}
+    X_splices = np.split(X[:, : num_splices * segment_size], num_splices, axis=-1)
+    Y_splices = np.split(Y[:, : num_splices * segment_size], num_splices, axis=-1)
 
+    for x_i, x_splice in enumerate(X_splices):
+        y_splice = Y_splices[x_i]
         A = train(
-            x_splice, y_splice, num_epochs=num_epochs, learning_rate=learning_rate
-        )  # A is done training at this point.
-
+            x_splice,
+            y_splice,
+            num_epochs=num_epochs,
+            learning_rate=learning_rate,
+            mu=0,
+            std=1e-2,
+        )
         loss = loss_fn(A, x_splice, y_splice)
-        pred = A @ x_splice
+        yhat = A @ x_splice
 
-        data_per_segment["A"].append(A)
-        data_per_segment["loss"].append(loss)
-        data_per_segment["pred"].append(pred)
+        outcome["A"].append(A)
+        outcome["loss"].append(loss)
+        outcome["yhat"].append(yhat)
 
-    return data_per_segment
+    return outcome
 
 
 def plot_subject_band_powers(
@@ -82,30 +91,40 @@ def plot_subject_band_powers(
     fig.show()
 
 
-def plot_pred_vs_actual(pred: np.ndarray, actual: np.ndarray, n_ch: int) -> None:
+def plot_pred_vs_actual(
+    pred: np.ndarray,
+    actual: np.ndarray,
+    n_ch: int,
+    channel_names: List[str],
+    title: str = "Time series subplots",
+) -> None:
     T = np.linspace(0, actual.shape[-1], actual.shape[-1])
     fig = make_subplots(rows=n_ch, cols=1, shared_xaxes=True)
 
     for ch_i in range(n_ch):
         scat_actual = go.Scatter(
-            x=T, y=actual[ch_i], mode="lines", name=f"Actual Ch{ch_i}"
+            x=T, y=actual[ch_i], mode="lines", name=f"Actual {channel_names[ch_i]}"
         )
         fig.add_trace(scat_actual, row=ch_i + 1, col=1)
-        scat_pred = go.Scatter(x=T, y=pred[ch_i], mode="lines", name=f"Pred Ch{ch_i}")
+        scat_pred = go.Scatter(
+            x=T, y=pred[ch_i], mode="lines", name=f"Pred {channel_names[ch_i]}"
+        )
         fig.add_trace(scat_pred, row=ch_i + 1, col=1)
 
-    fig.update_layout(height=300 * n_ch, title_text="Time Series Subplots")
+    fig.update_layout(height=300 * n_ch, title_text=title)
     fig.show()
 
 
-def plot_a_matrix(A: np.ndarray) -> None:
-    fig = go.Figure(data=go.Heatmap(z=A, colorscale="Viridis", showscale=True))
+def plot_a_matrix(A: np.ndarray, channel_names: List[str]) -> None:
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=A, x=channel_names, y=channel_names, colorscale="Viridis", showscale=True
+        )
+    )
 
     # Update layout
     fig.update_layout(
         title="Heatmap",
-        # xaxis_title='X Axis',
-        # yaxis_title='Y Axis',
         width=500,
         height=500,
     )
@@ -118,6 +137,27 @@ def main(args: argparse.Namespace) -> None:
     print(args)
     N_CH = 19
     FS = 250
+    channel_names = [
+        "Fp1",
+        "Fp2",
+        "F7",
+        "F3",
+        "Fz",
+        "F4",
+        "F8",
+        "T3",
+        "C3",
+        "Cz",
+        "C4",
+        "T4",
+        "T5",
+        "P3",
+        "Pz",
+        "P4",
+        "T6",
+        "O1",
+        "O2",
+    ]
 
     dirpath = "other_data/ibib_pan"
     subject_id = f"{args.subject}.csv"
@@ -137,7 +177,12 @@ def main(args: argparse.Namespace) -> None:
         subject_id=subject_id,
         fs=FS,
         use_cache=args.use_cache,
-    )
+    )  # of shape (n_channels, 5, T)
+    # z-score
+    mu = np.mean(subject_band_powers, axis=0, keepdims=True)
+    std = np.std(subject_band_powers, axis=0, keepdims=True)
+    subject_band_powers -= mu
+    subject_band_powers /= std
 
     print(subject_band_powers.shape)
     band_names = [b[0] for b in BANDS]
@@ -146,25 +191,38 @@ def main(args: argparse.Namespace) -> None:
     #     band_names=band_names,
     #     subject_id=subject_id,
     # )
-    X = subject_band_powers[:, 0, :]  # Now X shape: (N_CH, T)
-    X, Y = X[:, 1:], X[:, :-1]
-    data = train_ltv_model(X=X, Y=Y)
+    X = subject_band_powers[:, args.from_b, :-1]
+    Y = subject_band_powers[:, args.to_b, 1:]
+    data = train_ltv_model(X=X, Y=Y, segment_size=args.segment_size)
 
-    loss = np.mean(data["loss"])
-    print(f"loss: {loss}")
-    pred = np.stack(data["pred"], axis=-1)
-    print(pred.shape)
-    plot_pred_vs_actual(pred=pred, actual=Y, n_ch=N_CH)
-
-    # print(data["A"])
-
-    plot_a_matrix(data["A"][0])
-
+    loss = data["loss"]
+    print(f"loss: {np.mean(loss)}")
+    yhat = np.concat(data["yhat"], axis=-1)
+    # plot_pred_vs_actual(
+    #     pred=yhat,
+    #     actual=Y,
+    #     n_ch=N_CH,
+    #     channel_names=channel_names,
+    #     title=f"{band_names[args.from_b]} at t to {band_names[args.to_b]} at t+1, Actual v.s. Prediction",
+    # )
+    diags = []
+    non_diags = []
+    eye = np.eye(data["A"][0].shape[0])
+    for A in data["A"]:
+        diag_components = A * eye
+        non_diag_components = A - (diag_components)
+        diags.append(np.linalg.norm(diag_components))
+        non_diags.append(np.linalg.norm(non_diag_components))
+    print(f"norm_diag: mean: {np.mean(diags)}, std: {np.std(diags)}")
+    print(f"norm_non_diag: mean: {np.mean(non_diags)}, std: {np.std(non_diags)}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Autoencoder for IBIB Pan")
     parser.add_argument("--max-t", type=int, default=-1)
     parser.add_argument("--subject", type=str, default="h01")
     parser.add_argument("--use-cache", action="store_true")
+    parser.add_argument("--segment-size", type=int, default=4)
+    parser.add_argument("--from-b", type=int, default=0, choices=[0, 1, 2, 3, 4])
+    parser.add_argument("--to-b", type=int, default=0, choices=[0, 1, 2, 3, 4])
     args = parser.parse_args()
     main(args)
