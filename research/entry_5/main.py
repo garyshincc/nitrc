@@ -5,8 +5,9 @@ from typing import Any, Dict, List
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from scipy.stats import ttest_ind
 
-from research.models.ltv import loss_fn, train
+from research.models.ltv import solve
 from research.utils.data_utils import (
     BANDS,
     get_subject_band_powers,
@@ -14,16 +15,13 @@ from research.utils.data_utils import (
 )
 
 
-def train_ltv_model(
+def solve_ltv_model(
     X: np.ndarray,
     Y: np.ndarray,
     segment_size: int,
-    num_epochs: int = 500,
-    learning_rate: float = 1e-2,
 ) -> Dict[str, Any]:
     outcome = {
         "A": [],
-        "loss": [],
         "yhat": [],
     }
 
@@ -35,19 +33,13 @@ def train_ltv_model(
 
     for x_i, x_splice in enumerate(X_splices):
         y_splice = Y_splices[x_i]
-        A = train(
+        A = solve(
             x_splice,
             y_splice,
-            num_epochs=num_epochs,
-            learning_rate=learning_rate,
-            mu=0,
-            std=1e-2,
         )
-        loss = loss_fn(A, x_splice, y_splice)
         yhat = A @ x_splice
 
         outcome["A"].append(A)
-        outcome["loss"].append(loss)
         outcome["yhat"].append(yhat)
 
     return outcome
@@ -75,19 +67,15 @@ def plot_subject_band_powers(
             row=b_i + 1,
             col=1,
         )
-
-    # Update layout
     fig.update_layout(
         height=300 * len(BANDS),
         width=800,
-        title_text=f"EEG Power Bands and Ratios for {subject_id}",
+        title_text=f"EEG Power Bands for {subject_id}",
         showlegend=False,
         margin=dict(l=50, r=50, t=100, b=50),
     )
     fig.update_xaxes(title_text="Time (splices)")
     fig.update_yaxes(title_text="Channels")
-
-    # Show the plot
     fig.show()
 
 
@@ -121,15 +109,11 @@ def plot_a_matrix(A: np.ndarray, channel_names: List[str]) -> None:
             z=A, x=channel_names, y=channel_names, colorscale="Viridis", showscale=True
         )
     )
-
-    # Update layout
     fig.update_layout(
         title="Heatmap",
         width=500,
         height=500,
     )
-
-    # Show plot
     fig.show()
 
 
@@ -137,27 +121,6 @@ def main(args: argparse.Namespace) -> None:
     print(args)
     N_CH = 19
     FS = 250
-    channel_names = [
-        "Fp1",
-        "Fp2",
-        "F7",
-        "F3",
-        "Fz",
-        "F4",
-        "F8",
-        "T3",
-        "C3",
-        "Cz",
-        "C4",
-        "T4",
-        "T5",
-        "P3",
-        "Pz",
-        "P4",
-        "T6",
-        "O1",
-        "O2",
-    ]
 
     dirpath = "other_data/ibib_pan"
     healthy_eeg_filenames = [
@@ -167,9 +130,10 @@ def main(args: argparse.Namespace) -> None:
         f"s{str(i).zfill(2)}.csv" for i in range(1, args.num_subjects + 1)
     ]
     labels = [0] * len(healthy_eeg_filenames) + [1] * len(schizo_eeg_filenames)
-
-    As = np.zeros((len(healthy_eeg_filenames + schizo_eeg_filenames), N_CH, N_CH))
-
+    healthy_subject_diags = []
+    healthy_subject_non_diags = []
+    schizo_subject_diags = []
+    schizo_subject_non_diags = []
     for s_i, subject_id in enumerate(healthy_eeg_filenames + schizo_eeg_filenames):
         eeg_filepath = os.path.join(dirpath, subject_id)
         if args.use_cache:
@@ -194,35 +158,49 @@ def main(args: argparse.Namespace) -> None:
                 fs=FS,
                 use_cache=args.use_cache,
             )
-            # z-score
-            mu = np.mean(subject_band_powers, axis=0, keepdims=True)
-            std = np.std(subject_band_powers, axis=0, keepdims=True)
-            subject_band_powers -= mu
-            subject_band_powers /= std
+        mu = np.mean(subject_band_powers, axis=0, keepdims=True)
+        std = np.std(subject_band_powers, axis=0, keepdims=True)
+        subject_band_powers -= mu
+        subject_band_powers /= std
 
         X = subject_band_powers[:, args.from_b, :-1]  # Now X shape: (N_CH, T)
         Y = subject_band_powers[:, args.to_b, 1:]
-        data = train_ltv_model(X=X, Y=Y, segment_size=args.segment_size)
-        As[s_i] = np.mean(data["A"], axis=0)
+        data = solve_ltv_model(X, Y, segment_size=args.segment_size)
 
-    healthy_As = np.mean(As[np.array(labels) == 0], axis=0)
-    schizo_As = np.mean(As[np.array(labels) == 1], axis=0)
+        eye = np.eye(data["A"][0].shape[0])
+        diags = []
+        non_diags = []
+        for A in data["A"]:
+            diag_components = A * eye
+            non_diag_components = A - (diag_components)
+            diags.append(np.linalg.norm(diag_components))
+            non_diags.append(np.linalg.norm(non_diag_components))
+        if labels[s_i]:
+            schizo_subject_diags.append(np.mean(diags))
+            schizo_subject_non_diags.append(np.mean(non_diags))
+        else:
+            healthy_subject_diags.append(np.mean(diags))
+            healthy_subject_non_diags.append(np.mean(non_diags))
 
-    plot_a_matrix(healthy_As, channel_names=channel_names)
-    plot_a_matrix(schizo_As, channel_names=channel_names)
+    print(f"From {BANDS[args.from_b][0]} to {BANDS[args.to_b][0]}")
 
-    eye = np.eye(N_CH)
-    print("healthy")
-    diag_components = healthy_As * eye
-    non_diag_components = healthy_As - (diag_components)
-    print(f"\tnorm_diag: {round(np.linalg.norm(diag_components), 4)}")
-    print(f"\tnorm_non_diag: {round(np.linalg.norm(non_diag_components), 4)}")
+    t_stat, diag_p_value = ttest_ind(
+        healthy_subject_diags, schizo_subject_diags, equal_var=False
+    )
+    healthy_diag_norm = np.mean(healthy_subject_diags)
+    schizo_diag_norm = np.mean(schizo_subject_diags)
+    print(
+        f"Diag norm, healthy: {healthy_diag_norm:.3f}, schizo: {schizo_diag_norm:.3f}, p-value: {diag_p_value:.4f}"
+    )
 
-    print("schizo")
-    diag_components = schizo_As * eye
-    non_diag_components = schizo_As - (diag_components)
-    print(f"\tnorm_diag: {round(np.linalg.norm(diag_components), 4)}")
-    print(f"\tnorm_non_diag: {round(np.linalg.norm(non_diag_components), 4)}")
+    t_stat, non_diag_p_value = ttest_ind(
+        healthy_subject_non_diags, schizo_subject_non_diags, equal_var=False
+    )
+    healthy_non_diag_norm = np.mean(healthy_subject_non_diags)
+    schizo_non_diag_norm = np.mean(schizo_subject_non_diags)
+    print(
+        f"Non diag norm, healthy: {healthy_non_diag_norm:.3f}, schizo: {schizo_non_diag_norm:.3f}, p-value: {non_diag_p_value:.4f}"
+    )
 
 
 if __name__ == "__main__":
@@ -230,8 +208,8 @@ if __name__ == "__main__":
     parser.add_argument("--max-t", type=int, default=-1)
     parser.add_argument("--num-subjects", type=int, default=14)
     parser.add_argument("--use-cache", action="store_true")
-    parser.add_argument("--segment-size", type=int, default=4)
     parser.add_argument("--from-b", type=int, default=0, choices=[0, 1, 2, 3, 4])
     parser.add_argument("--to-b", type=int, default=0, choices=[0, 1, 2, 3, 4])
+    parser.add_argument("--segment-size", type=int, default=1)
     args = parser.parse_args()
     main(args)

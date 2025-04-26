@@ -3,6 +3,7 @@ from typing import Any
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 from research.config import GRAD_CLIP, LR
 
@@ -18,7 +19,7 @@ def model(A: jnp.ndarray, x: jnp.ndarray) -> Any:
 @jax.jit
 def loss_fn(A: jnp.ndarray, x: jnp.ndarray, y: jnp.ndarray) -> Any:
     y_hat = model(A, x)
-    return jnp.mean(jnp.linalg.norm(y_hat - y, axis=-1) ** 2)
+    return jnp.mean((y - y_hat) ** 2)
 
 
 grad_loss = jax.grad(loss_fn)
@@ -46,8 +47,27 @@ def train(
     Y: jnp.ndarray,
     learning_rate: float = LR,
     num_epochs: int = 100,
+    mu: float = 0.0,
+    std: float = 0.0,
 ) -> jnp.ndarray:
-    A = 0 + 0.01 * jax.random.normal(key, (X.shape[0], X.shape[0]))
+    A = mu + std * jax.random.normal(key, (X.shape[0], X.shape[0]))
     for _ in range(num_epochs):
         A = update(A, X, Y, lr=learning_rate)
     return A
+
+
+def solve(
+    X: np.ndarray,
+    Y: np.ndarray,
+) -> np.ndarray:
+    X_now = Y.T
+    X_past = X.T
+    n_channels = X_past.shape[1]
+
+    XTX = X_past.T @ X_past
+    XTy = X_past.T @ X_now
+
+    XTX_reg = XTX + 0.01 * np.eye(n_channels)
+    A_T = np.linalg.solve(XTX_reg, XTy)
+
+    return A_T.T
