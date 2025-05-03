@@ -47,7 +47,7 @@ def main() -> None:
     X = fill_flat_channels(X, fillval=np.nan)
     X = fill_wack_channels(X, fillval=np.nan)
     X = interpolate_faulty_channels(X, "GSN_HydroCel_129.sfp", fs=FS)
-    
+
     X = butter_bandpass_filter(X, lowcut=BP_MIN, highcut=BP_MAX, fs=FS)
     X = butter_bandstop_filter(X, lowcut=NOTCH_MIN, highcut=NOTCH_MAX, fs=FS)
     X = znorm(X)

@@ -6,9 +6,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from research.models.ltv import solve_ltv_model
-from research.utils.data_utils import (
-    load_with_preprocessing,
-)
+from research.utils.data_utils import load_with_preprocessing
 
 
 def main(args: argparse.Namespace) -> None:

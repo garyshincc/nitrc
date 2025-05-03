@@ -1,6 +1,6 @@
 import argparse
 import os
-from typing import Any, Dict, List
+from typing import List
 
 import numpy as np
 import plotly.graph_objects as go
@@ -13,7 +13,6 @@ from research.utils.data_utils import (
     get_subject_band_powers,
     load_with_preprocessing,
 )
-
 
 
 def plot_subject_band_powers(

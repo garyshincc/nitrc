@@ -22,9 +22,7 @@ band_names = [b[0] for b in BANDS]
 def visualize_paracoords(subject_band_powers: np.ndarray, subject_id: str) -> None:
     # subject_band_powers shape: (num_channels, num_bands, T)
     mean_power = np.mean(subject_band_powers, axis=0)
-    mean_power = mean_power / np.sum(
-        mean_power, axis=0, keepdims=True
-    )
+    mean_power = mean_power / np.sum(mean_power, axis=0, keepdims=True)
     fig = go.Figure(
         data=go.Parcoords(
             dimensions=[

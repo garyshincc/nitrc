@@ -129,7 +129,6 @@ def solve_ltv_model(
     X_splices = np.split(X[:, : num_splices * segment_length], num_splices, axis=-1)
     Y_splices = np.split(Y[:, : num_splices * segment_length], num_splices, axis=-1)
 
-    
     for x_i, x_splice in enumerate(X_splices):
         y_splice = Y_splices[x_i]
         A = solve(
@@ -147,7 +146,7 @@ def solve_ltv_model(
                 prev_yhat = yhat
 
             corr = np.corrcoef(yhat_segments.flatten(), y_splice.flatten())[0, 1]
-            correlation_fit_error = 1 - corr ** 2
+            correlation_fit_error = 1 - corr**2
             outcome["error"].append(correlation_fit_error)
 
         outcome["yhat"].append(yhat_segments)

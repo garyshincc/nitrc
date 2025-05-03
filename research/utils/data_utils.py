@@ -48,21 +48,23 @@ def znorm(x: np.ndarray, clamp: float = 5, axis: int = -1) -> Any:
 
 def butter_bandpass_filter(
     x: np.ndarray, lowcut: float, highcut: float, fs: int, order: int = 5
-) -> np.ndarray:
+) -> Any:
     b, a = butter(order, [lowcut, highcut], fs=fs, btype="bandpass")
 
-    y = filtfilt(b, a, x, axis=-1, padtype='even', padlen=6*(max(len(b), len(a))-1))
-    
+    y = filtfilt(b, a, x, axis=-1, padtype="even", padlen=6 * (max(len(b), len(a)) - 1))
+
     return y
+
 
 def butter_bandstop_filter(
     x: np.ndarray, lowcut: float, highcut: float, fs: int, order: int = 5
-) -> np.ndarray:
+) -> Any:
     b, a = butter(order, [lowcut, highcut], fs=fs, btype="bandstop")
 
-    y = filtfilt(b, a, x, axis=-1, padtype='even', padlen=6*(max(len(b), len(a))-1))
+    y = filtfilt(b, a, x, axis=-1, padtype="even", padlen=6 * (max(len(b), len(a)) - 1))
 
     return y
+
 
 def fill_flat_channels(
     x: np.ndarray, std_threshold: float = 1e-5, fillval: float = np.nan
@@ -170,7 +172,7 @@ def load_with_preprocessing(
     if subject_id in SUBJECT_MAX_T:
         s_min_t, s_max_t = SUBJECT_MAX_T[subject_id]
         X = X[:n_ch, s_min_t:s_max_t]
-    X = X[:n_ch, : max_t]
+    X = X[:n_ch, :max_t]
     X = fill_flat_channels(X, fillval=np.nan)
     X = fill_wack_channels(X, fillval=np.nan)
     if not skip_interpolation:
@@ -316,3 +318,16 @@ def detect_outliers(
     ]
 
     return outlier_subjects
+
+# Lanzhou
+def create_subject_dict(map_file):
+    map_file = "data_raw/lanzhou/map.csv"
+    map_df = pd.read_csv(map_file, converters={"subject id": str})
+
+    subject_dict = {}
+    for _, row in map_df.iterrows():
+        subject_id = str(row["subject_id"])
+        subject_info = {k: row[k] for k in map_df.columns if k != "subject_id"}
+        subject_dict[subject_id] = subject_info
+
+    return subject_dict
