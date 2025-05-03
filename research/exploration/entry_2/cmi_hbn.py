@@ -21,10 +21,10 @@ band_names = [b[0] for b in BANDS]
 
 def visualize_paracoords(subject_band_powers: np.ndarray, subject_id: str) -> None:
     # subject_band_powers shape: (num_channels, num_bands, T)
-    mean_power = np.mean(subject_band_powers, axis=0)  # Average across all channels
+    mean_power = np.mean(subject_band_powers, axis=0)
     mean_power = mean_power / np.sum(
         mean_power, axis=0, keepdims=True
-    )  # Normalize across all bands
+    )
     fig = go.Figure(
         data=go.Parcoords(
             dimensions=[
@@ -67,7 +67,6 @@ def plot_subject_band_powers(
             col=1,
         )
 
-    # Update layout
     fig.update_layout(
         height=300 * len(BANDS),
         width=800,
@@ -78,7 +77,6 @@ def plot_subject_band_powers(
     fig.update_xaxes(title_text="Time (splices)")
     fig.update_yaxes(title_text="Channels")
 
-    # Show the plot
     fig.show()
 
 
@@ -158,20 +156,20 @@ def main(args: argparse.Namespace) -> None:
             fs=FS,
         )  # shape: (n_channels, 5, T)
 
-        plot_subject_band_powers(
-            subject_band_powers=subject_band_powers,
-            band_names=band_names,
-            subject_id=subject_id,
-        )
+        # plot_subject_band_powers(
+        #     subject_band_powers=subject_band_powers,
+        #     band_names=band_names,
+        #     subject_id=subject_id,
+        # )
 
-        plot_subject_band_ratios(
-            subject_band_powers=subject_band_powers,
-            subject_id=subject_id,
-        )
+        # plot_subject_band_ratios(
+        #     subject_band_powers=subject_band_powers,
+        #     subject_id=subject_id,
+        # )
 
-        visualize_paracoords(
-            subject_band_powers=subject_band_powers, subject_id=subject_id
-        )
+        # visualize_paracoords(
+        #     subject_band_powers=subject_band_powers, subject_id=subject_id
+        # )
         subject_mean = np.mean(subject_band_powers, axis=(0, 2))
         all_subjects_band_powers[f_i] = subject_mean
 

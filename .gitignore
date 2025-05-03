@@ -41,3 +41,7 @@ dist/
 *.bak
 *.cache
 *.npy
+
+data/
+other_data/
+raw_data/
