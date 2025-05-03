@@ -7,42 +7,13 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from scipy.stats import ttest_ind
 
-from research.models.ltv import solve
+from research.models.ltv import solve_ltv_model
 from research.utils.data_utils import (
     BANDS,
     get_subject_band_powers,
     load_with_preprocessing,
 )
 
-
-def solve_ltv_model(
-    X: np.ndarray,
-    Y: np.ndarray,
-    segment_size: int,
-) -> Dict[str, Any]:
-    outcome = {
-        "A": [],
-        "yhat": [],
-    }
-
-    num_splices = X.shape[-1] // segment_size
-    if num_splices < 1:
-        return {}
-    X_splices = np.split(X[:, : num_splices * segment_size], num_splices, axis=-1)
-    Y_splices = np.split(Y[:, : num_splices * segment_size], num_splices, axis=-1)
-
-    for x_i, x_splice in enumerate(X_splices):
-        y_splice = Y_splices[x_i]
-        A = solve(
-            x_splice,
-            y_splice,
-        )
-        yhat = A @ x_splice
-
-        outcome["A"].append(A)
-        outcome["yhat"].append(yhat)
-
-    return outcome
 
 
 def plot_subject_band_powers(

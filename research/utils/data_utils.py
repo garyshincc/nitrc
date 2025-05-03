@@ -28,7 +28,10 @@ BANDS = [
 
 # Manual rejection
 SUBJECT_MAX_T = {
-    "NDARAD459XJK": 120000,
+    "NDARAD459XJK": (0, 120000),
+    "NDARAG429CGW": (0, 160000),
+    "NDARBH789CUP": (11000, 150000),
+    "NDARAD459XJK": (45000, 110000),
 }
 
 ### Data Pre-processing methods
@@ -45,19 +48,29 @@ def znorm(x: np.ndarray, clamp: float = 5, axis: int = -1) -> Any:
 
 def butter_bandpass_filter(
     x: np.ndarray, lowcut: float, highcut: float, fs: int, order: int = 5
-) -> Any:
+) -> np.ndarray:
     b, a = butter(order, [lowcut, highcut], fs=fs, btype="bandpass")
-    y = filtfilt(b, a, x)
-    return y
 
+    y = filtfilt(b, a, x, axis=-1, padtype='even', padlen=6*(max(len(b), len(a))-1))
+    
+    # trim_samples = order * 6
+    # print(y.shape)
+    # y = y[:, trim_samples:-trim_samples]
+    # print(y.shape)
+    
+    return y
 
 def butter_bandstop_filter(
     x: np.ndarray, lowcut: float, highcut: float, fs: int, order: int = 5
-) -> Any:
+) -> np.ndarray:
     b, a = butter(order, [lowcut, highcut], fs=fs, btype="bandstop")
-    y = filtfilt(b, a, x)
-    return y
 
+    y = filtfilt(b, a, x, axis=-1, padtype='even', padlen=6*(max(len(b), len(a))-1))
+
+    # trim_samples = order * 6
+    # y = y[:, trim_samples:-trim_samples]
+    
+    return y
 
 def fill_flat_channels(
     x: np.ndarray, std_threshold: float = 1e-5, fillval: float = np.nan
@@ -162,12 +175,10 @@ def load_with_preprocessing(
     fs: int = FS,
 ) -> Any:
     X = np.loadtxt(filepath, delimiter=",")
-    if max_t == -1:
-        max_t = X.shape[-1]
     if subject_id in SUBJECT_MAX_T:
-        subject_max_t = SUBJECT_MAX_T[subject_id]
-        max_t = min(max_t, subject_max_t)
-    X = X[:n_ch, :max_t]
+        s_min_t, s_max_t = SUBJECT_MAX_T[subject_id]
+        X = X[:n_ch, s_min_t:s_max_t]
+    X = X[:n_ch, : max_t]
     X = fill_flat_channels(X, fillval=np.nan)
     X = fill_wack_channels(X, fillval=np.nan)
     if not skip_interpolation:

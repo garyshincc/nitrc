@@ -3,11 +3,6 @@ import os
 
 import numpy as np
 
-from research.entry_5.main import (
-    plot_a_matrix,
-    plot_pred_vs_actual,
-    plot_subject_band_powers,
-)
 from research.models.ltv import solve_ltv_model
 from research.utils.data_utils import (
     BANDS,
@@ -62,7 +57,7 @@ def main(args: argparse.Namespace) -> None:
         fs=FS,
         use_cache=args.use_cache,
     )  # of shape (n_channels, 5, T)
-    # z-score
+
     mu = np.mean(subject_band_powers, axis=0, keepdims=True)
     std = np.std(subject_band_powers, axis=0, keepdims=True)
     subject_band_powers -= mu
@@ -70,36 +65,17 @@ def main(args: argparse.Namespace) -> None:
 
     print(subject_band_powers.shape)
     band_names = [b[0] for b in BANDS]
-    plot_subject_band_powers(
-        subject_band_powers=subject_band_powers,
-        band_names=band_names,
-        subject_id=subject_id,
-    )
     X = subject_band_powers[:, args.from_b, :-1]
     Y = subject_band_powers[:, args.to_b, 1:]
     data = solve_ltv_model(X, Y, segment_size=args.segment_size)
 
     yhat = np.concat(data["yhat"], axis=-1)
-    plot_pred_vs_actual(
-        pred=yhat,
-        actual=Y,
-        n_ch=N_CH,
-        channel_names=CHANNEL_NAMES,
-        title=f"{band_names[args.from_b]} at t to {band_names[args.to_b]} at t+1, Actual v.s. Prediction",
-    )
-    diags = []
-    non_diags = []
-    eye = np.eye(data["A"][0].shape[0])
+    channel_to_channel = []
     for A in data["A"]:
-        diag_components = A * eye
-        non_diag_components = A - (diag_components)
-        diags.append(np.linalg.norm(diag_components))
-        non_diags.append(np.linalg.norm(non_diag_components))
-    plot_a_matrix(data["A"][0], channel_names=CHANNEL_NAMES)
-    plot_a_matrix(data["A"][1], channel_names=CHANNEL_NAMES)
-    plot_a_matrix(data["A"][2], channel_names=CHANNEL_NAMES)
-    print(f"norm_diag: mean: {np.mean(diags)}, std: {np.std(diags)}")
-    print(f"norm_non_diag: mean: {np.mean(non_diags)}, std: {np.std(non_diags)}")
+        channel_to_channel.append(A[args.from_c][args.to_c])
+    print(
+        f"{CHANNEL_NAMES[args.from_c]} to {CHANNEL_NAMES[args.to_c]}: mean: {np.mean(channel_to_channel)}, {np.std(channel_to_channel)}"
+    )
 
 
 if __name__ == "__main__":
@@ -107,8 +83,11 @@ if __name__ == "__main__":
     parser.add_argument("--max-t", type=int, default=-1)
     parser.add_argument("--subject", type=str, default="h01")
     parser.add_argument("--use-cache", action="store_true")
-    parser.add_argument("--segment-size", type=int, default=30)
+    parser.add_argument("--segment-size", type=int, default=4)
     parser.add_argument("--from-b", type=int, default=0, choices=[0, 1, 2, 3, 4])
     parser.add_argument("--to-b", type=int, default=0, choices=[0, 1, 2, 3, 4])
+    parser.add_argument("--from-c", type=int, default=0, choices=[i for i in range(19)])
+    parser.add_argument("--to-c", type=int, default=1, choices=[i for i in range(19)])
+
     args = parser.parse_args()
     main(args)

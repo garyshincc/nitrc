@@ -5,7 +5,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from research.entry_1.main import train_ltv_model
+from research.models.ltv import solve_ltv_model
 from research.utils.data_utils import (
     EEG_TASK_MAP,
     collect_specified_files,
@@ -20,6 +20,7 @@ def main(args: argparse.Namespace) -> None:
 
     eeg_filepath = collect_specified_files(args.task_name)[args.subject_i]
     subject_id = eeg_filepath.split(os.path.sep)[-5]
+    print(subject_id)
 
     X = load_with_preprocessing(
         eeg_filepath,
@@ -30,13 +31,13 @@ def main(args: argparse.Namespace) -> None:
     )
     X, Y = X[:, : -args.tau], X[:, args.tau :]
 
-    data_per_segment = train_ltv_model(X, Y, segment_size_list=[args.segment_length])
+    data_per_segment = solve_ltv_model(X, Y, segment_length=args.segment_length)
 
-    loss = data_per_segment["mean_loss"][0]
-    print(f"N: {args.segment_length}, loss: {loss}")
+    error = data_per_segment["error"]
+    print(f"N: {args.segment_length}, error: {np.mean(error)}")
 
     # Create time axis in seconds
-    yhats = np.concat(data_per_segment["pred"][0], axis=-1)
+    yhats = np.concat(data_per_segment["yhat"], axis=-1)
     T = np.linspace(0, Y.shape[-1], Y.shape[-1])
 
     # Create a single figure with subplots for each channel
@@ -59,10 +60,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--task-name", type=str, choices=EEG_TASK_MAP.keys(), default="Resting"
     )
-    parser.add_argument("--segment-length", type=int, default=250)
+    parser.add_argument("--segment-length", type=int, default=25)
     parser.add_argument("--tau", type=int, default=1)
-    parser.add_argument("--max-t", type=int, default=500 * 10)
-    parser.add_argument("--subject_i", type=int, default=1)
+    parser.add_argument("--max-t", type=int, default=500 * 30)
+    parser.add_argument("--subject-i", type=int, default=0)
 
     args = parser.parse_args()
     main(args)
