@@ -53,11 +53,6 @@ def butter_bandpass_filter(
 
     y = filtfilt(b, a, x, axis=-1, padtype='even', padlen=6*(max(len(b), len(a))-1))
     
-    # trim_samples = order * 6
-    # print(y.shape)
-    # y = y[:, trim_samples:-trim_samples]
-    # print(y.shape)
-    
     return y
 
 def butter_bandstop_filter(
@@ -67,9 +62,6 @@ def butter_bandstop_filter(
 
     y = filtfilt(b, a, x, axis=-1, padtype='even', padlen=6*(max(len(b), len(a))-1))
 
-    # trim_samples = order * 6
-    # y = y[:, trim_samples:-trim_samples]
-    
     return y
 
 def fill_flat_channels(
