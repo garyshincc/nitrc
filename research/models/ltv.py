@@ -115,6 +115,7 @@ def solve_ltv_model(
     X: np.ndarray,
     Y: np.ndarray,
     segment_length: int,
+    do_pred: bool = True,
 ) -> Dict[str, Any]:
     outcome = {
         "A": [],
@@ -138,16 +139,17 @@ def solve_ltv_model(
         outcome["A"].append(A)
 
         yhat_segments = np.zeros(y_splice.shape)
-        prev_yhat = x_splice[:, 0]
-        for x_j in range(segment_length):
-            yhat = A @ prev_yhat
-            yhat_segments[:, x_j] = yhat
-            prev_yhat = yhat
+        if do_pred:
+            prev_yhat = x_splice[:, 0]
+            for x_j in range(segment_length):
+                yhat = A @ prev_yhat
+                yhat_segments[:, x_j] = yhat
+                prev_yhat = yhat
 
-        corr = np.corrcoef(yhat_segments.flatten(), y_splice.flatten())[0, 1]
-        correlation_fit_error = 1 - corr ** 2
+            corr = np.corrcoef(yhat_segments.flatten(), y_splice.flatten())[0, 1]
+            correlation_fit_error = 1 - corr ** 2
+            outcome["error"].append(correlation_fit_error)
 
         outcome["yhat"].append(yhat_segments)
-        outcome["error"].append(correlation_fit_error)
 
     return outcome

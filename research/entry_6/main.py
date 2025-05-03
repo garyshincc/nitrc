@@ -134,7 +134,7 @@ def main(args: argparse.Namespace) -> None:
 
         X = X_total[:, :-1]
         Y = X_total[:, 1:]
-        data = solve_ltv_model(X, Y, segment_size=args.segment_size)
+        data = solve_ltv_model(X, Y, segment_length=args.segment_length, do_pred=False)
 
         As = np.stack(data["A"], axis=0)
         for to_c in range(N_CH):
@@ -208,6 +208,6 @@ if __name__ == "__main__":
     parser.add_argument("--max-t", type=int, default=-1)
     parser.add_argument("--num-subjects", type=int, default=14)
     parser.add_argument("--use-cache", action="store_true")
-    parser.add_argument("--segment-size", type=int, default=1)
+    parser.add_argument("--segment-length", type=int, default=30)
     args = parser.parse_args()
     main(args)

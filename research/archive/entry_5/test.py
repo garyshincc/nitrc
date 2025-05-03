@@ -77,7 +77,7 @@ def main(args: argparse.Namespace) -> None:
     )
     X = subject_band_powers[:, args.from_b, :-1]
     Y = subject_band_powers[:, args.to_b, 1:]
-    data = solve_ltv_model(X, Y, segment_size=args.segment_size)
+    data = solve_ltv_model(X, Y, segment_length=args.segment_length)
 
     yhat = np.concat(data["yhat"], axis=-1)
     plot_pred_vs_actual(
@@ -107,7 +107,7 @@ if __name__ == "__main__":
     parser.add_argument("--max-t", type=int, default=-1)
     parser.add_argument("--subject", type=str, default="h01")
     parser.add_argument("--use-cache", action="store_true")
-    parser.add_argument("--segment-size", type=int, default=30)
+    parser.add_argument("--segment-length", type=int, default=30)
     parser.add_argument("--from-b", type=int, default=0, choices=[0, 1, 2, 3, 4])
     parser.add_argument("--to-b", type=int, default=0, choices=[0, 1, 2, 3, 4])
     args = parser.parse_args()

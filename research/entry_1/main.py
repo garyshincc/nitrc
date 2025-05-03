@@ -40,7 +40,7 @@ if __name__ == "__main__":
         "--task-name", type=str, choices=EEG_TASK_MAP.keys(), default="Resting"
     )
     parser.add_argument(
-        "--segment-lengths", nargs="+", type=int, default=[25, 50, 100, 150]
+        "--segment-lengths", nargs="+", type=int, default=[125, 250, 500, 1000]
     )
     parser.add_argument("--tau", type=int, default=1)
     parser.add_argument("--max-t", type=int, default=500 * 30)

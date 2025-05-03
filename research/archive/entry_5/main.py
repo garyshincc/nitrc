@@ -136,7 +136,7 @@ def main(args: argparse.Namespace) -> None:
 
         X = subject_band_powers[:, args.from_b, :-1]  # Now X shape: (N_CH, T)
         Y = subject_band_powers[:, args.to_b, 1:]
-        data = solve_ltv_model(X, Y, segment_size=args.segment_size)
+        data = solve_ltv_model(X, Y, segment_length=args.segment_length)
 
         eye = np.eye(data["A"][0].shape[0])
         diags = []
@@ -181,6 +181,6 @@ if __name__ == "__main__":
     parser.add_argument("--use-cache", action="store_true")
     parser.add_argument("--from-b", type=int, default=0, choices=[0, 1, 2, 3, 4])
     parser.add_argument("--to-b", type=int, default=0, choices=[0, 1, 2, 3, 4])
-    parser.add_argument("--segment-size", type=int, default=1)
+    parser.add_argument("--segment-length", type=int, default=1)
     args = parser.parse_args()
     main(args)
