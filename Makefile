@@ -33,4 +33,5 @@ requirements.txt: pyproject.toml $(PROJ_DIR)/ci/generate_requirements.py ## Gene
 .PHONY: clean_cache
 clean_cache:
 	@echo "Clearing Data Cache..."
-	rm data_cache/*
+	rm -rf data_cache/*
+	rm -rf data_cache_cleaned/*

@@ -42,6 +42,8 @@ dist/
 *.cache
 *.npy
 
-data/
-other_data/
-raw_data/
+datasets_cleaned/
+datasets/
+datasets_raw/
+data_cache/
+data_cache_cleaned/
